@@ -1,0 +1,31 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+*.log
+*.sqlite
+.DS_Store
+.idea/
+.vscode/
+.gemini/
+static/campaigns/
+mv/
+agency_v2/eval_images/
+agency_v2/eval_runs/
+agency_v2/cockpit.db
+agency_v2/cockpit_checkpoints.db
+agency_v2/generated_images/
+.chainlit/
+chainlit.md
+
+# Frontend
+node_modules/
+dist/
+.env.local
+
+# Databases
+*.db
+*.sqlite3
