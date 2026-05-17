@@ -1,0 +1,39 @@
+# Core
+fastapi
+uvicorn[standard]
+httpx
+python-multipart
+python-dotenv
+pydantic-settings
+
+# Image processing
+Pillow
+
+# LangGraph + LangChain
+langgraph
+langgraph-checkpoint-postgres
+langchain-google-genai
+langchain-core
+
+# Google GenAI SDK (for Gemini image generation)
+google-genai
+
+# Scheduling
+apscheduler
+
+# Database
+sqlmodel
+sqlalchemy[asyncio]
+asyncpg
+greenlet
+psycopg[binary,pool]
+psycopg2-binary
+pgvector
+
+# Testing
+pytest-asyncio
+httpx
+
+# RAG
+langchain-text-splitters
+python-dateutil
