@@ -1,9 +1,16 @@
-# MarketBot (AI Marketing Agent)
+# Market Beez (mkt-agency-v3)
 
 ## Overview
-This is a **Modular Monolith** backend for an AI Marketing Agent delivered entirely via WhatsApp. It is built natively on **FastAPI** to directly receive WhatsApp Webhooks, orchestrate the LangGraph ReAct Agent (using Gemini 2.5), generate images, and publish to the Instagram Graph API.
+**Market Beez** is an autonomous, multi-agent AI Marketing Agency. The system operates on a strictly decoupled architecture, featuring a **FastAPI** backend that orchestrates a LangGraph swarm (powered by Gemini 2.5), and a **Vite/React TypeScript** frontend known as the "Director's Cockpit" for real-time monitoring and Human-in-the-Loop (HITL) approvals. 
 
-> Note: Early versions of this documentation referenced `n8n` as an orchestrator. **This project is now a standalone native FastAPI implementation**; n8n is no longer required or used, drastically reducing latency and complexity.
+Additionally, a parallel **WhatsApp integration** acts as a secondary, lightweight interface for handling critical or minimal HITL inputs on the go.
+
+## Architecture Boundaries
+
+- **FastAPI Core (`main_v3.py`)**: The asynchronous backbone handling REST endpoints, SSE streams, and WhatsApp webhooks.
+- **LangGraph Swarm (`/logic`)**: The intelligence layer featuring a Supervisor pattern that routes briefs to specialized Worker Agents (Creative, Judge, etc.).
+- **Director's Cockpit (`/ui`)**: An isolated React frontend for rich visual monitoring of agent reasoning, state visualization, and content approval.
+- **Persistence (`/infrastructure`)**: All multi-agent thread states are durably serialized into PostgreSQL via an `AsyncPostgresSaver`, ensuring perfect resilience across restarts.
 
 ## Setup & Environment Variables
 
@@ -13,50 +20,34 @@ This is a **Modular Monolith** backend for an AI Marketing Agent delivered entir
 GOOGLE_API_KEY=your_gemini_key
 GEMINI_MODEL=gemini-2.5-flash
 
-# WhatsApp API
+# FinOps / Development
+AGENCY_MOCK_LLM=true # Set to 'true' to bypass API costs during UI development
+
+# WhatsApp API (Secondary Interface)
 WHATSAPP_ACCESS_TOKEN=your_token
 PHONE_NUMBER_ID=your_waba_phone_id
 VERIFY_TOKEN=your_webhook_verify_token
 APP_SECRET=your_meta_app_secret
 
-# Instagram API
-META_APP_ID=your_meta_id
-META_APP_SECRET=your_meta_secret
-INSTAGRAM_ACCOUNT_ID=ig_account
-INSTAGRAM_ACCESS_TOKEN=ig_token
-
 # Database
-# The stack must support pgvector.
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/marketing_agent
 ```
 
-2. Run Locally with Uvicorn:
+2. Boot the Backend:
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Or .\.venv\Scripts\activate on Windows
 pip install -r requirements.txt
 
-uvicorn main:app --reload
+uvicorn main_v3:app --reload --port 8000
 ```
 
-## WhatsApp Webhook Configuration
+3. Boot the Frontend Cockpit:
+```bash
+cd ui
+npm install
+npm run dev
+```
 
-To receive messages from users, configure your Meta App's Webhook to point to your deployed instance:
-
-### Webhook URL
-`https://your-domain.com/webhook`
-
-**Subscribed Fields:**
-- `messages` (Required for text, audio, and image messages)
-
-## Architecture
-
-- **FastAPI**: Core async web framework routing webhooks.
-- **LangGraph**: Orchestrates the ReAct Agent logic and tools.
-- **SQLModel / PostgreSQL**: Storage for Users, Campaigns, and pgvector embeddings for RAG.
-- **APScheduler**: Manages deferred/scheduled Instagram publishing.
-
-
-
-
-
+## Deployment
+The backend is containerized via a root `Dockerfile` and configured for seamless deployment on **Railway** (see `railway.toml`). The Vite frontend is compiled and deployed separately to maintain strict CI/CD boundaries.
