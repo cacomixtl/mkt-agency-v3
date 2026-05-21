@@ -147,6 +147,7 @@ _allowed_origins: list[str] = [
     "http://localhost:5173",     # Vite default fallback
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
+    "https://frontend-v3-production-5ee4.up.railway.app",
 ]
 
 # Railway / production frontend URL from environment
