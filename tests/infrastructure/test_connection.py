@@ -30,6 +30,7 @@ pytestmark = pytest.mark.skipif(
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest_asyncio.fixture(scope="module")
 async def v3_backend():
     """Initialize the V3 backend once for the entire test module."""
@@ -58,6 +59,7 @@ async def db_session(v3_backend):
 # Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_session_commit_and_rollback(v3_backend):
     """Verify that get_db_session commits on clean exit and rolls back on error."""
@@ -68,13 +70,15 @@ async def test_session_commit_and_rollback(v3_backend):
 
     # Write a record
     async with get_db_session() as session:
-        session.add(CampaignRecord(
-            thread_id=thread_id,
-            persona_name="Silicon Labor",
-            niche="Test commit",
-            stage="draft",
-            publish_targets=["instagram"],
-        ))
+        session.add(
+            CampaignRecord(
+                thread_id=thread_id,
+                persona_name="Silicon Labor",
+                niche="Test commit",
+                stage="draft",
+                publish_targets=["instagram"],
+            )
+        )
 
     # Read it back in a new session
     from sqlalchemy import select
@@ -95,8 +99,9 @@ async def test_session_commit_and_rollback(v3_backend):
 @pytest.mark.asyncio
 async def test_pool_health_check(v3_backend):
     """Verify pool_pre_ping keeps connections healthy."""
-    from infrastructure.connection import get_engine
     from sqlalchemy import text
+
+    from infrastructure.connection import get_engine
 
     engine = get_engine()
     async with engine.connect() as conn:
@@ -118,9 +123,10 @@ async def test_checkpointer_setup_idempotent(v3_backend):
 @pytest.mark.asyncio
 async def test_campaign_insert_unique_thread_id(v3_backend):
     """Inserting two campaigns with the same thread_id must raise IntegrityError."""
+    from sqlalchemy.exc import IntegrityError
+
     from infrastructure.connection import get_db_session
     from models.campaign import CampaignRecord
-    from sqlalchemy.exc import IntegrityError
 
     thread_id = f"test-unique-{uuid.uuid4()}"
     base_kwargs = dict(
@@ -155,7 +161,8 @@ async def test_campaign_insert_unique_thread_id(v3_backend):
 @pytest.mark.asyncio
 async def test_campaign_start_endpoint_round_trip(v3_backend):
     """Full HTTP round-trip: POST /campaign/start → GET /campaign/{id}/state."""
-    from httpx import AsyncClient, ASGITransport
+    from httpx import ASGITransport, AsyncClient
+
     from main_v3 import app
 
     transport = ASGITransport(app=app)
@@ -188,9 +195,10 @@ async def test_campaign_start_endpoint_round_trip(v3_backend):
         assert state["data"]["niche"] == "Test round-trip from pytest"
 
     # Clean up
+    from sqlalchemy import select
+
     from infrastructure.connection import get_db_session
     from models.campaign import CampaignRecord
-    from sqlalchemy import select
 
     async with get_db_session() as session:
         result = await session.execute(

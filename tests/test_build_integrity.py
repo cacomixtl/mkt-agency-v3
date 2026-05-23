@@ -7,6 +7,7 @@ Objective: Mathematically prove the V3 architecture compiles and communicates co
 
 import sys
 from pathlib import Path
+
 import pytest
 
 # Ensure project root is on the path
@@ -20,6 +21,7 @@ def test_fastapi_app_compilation():
     """
     try:
         import main_v3
+
         assert main_v3.app is not None, "FastAPI app instance is missing in main_v3"
     except Exception as e:
         pytest.fail(f"CRITICAL FASTAPI IMPORT FAILURE: {e}")
@@ -32,6 +34,7 @@ def test_langgraph_orchestrator_compilation():
     """
     try:
         from logic import build_v3_graph
+
         # We pass checkpointer=None since we are only testing compilation
         graph = build_v3_graph(checkpointer=None)
         assert graph is not None, "Failed to compile the LangGraph orchestrator"

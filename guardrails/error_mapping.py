@@ -31,14 +31,14 @@ class ExceptionMapper:
     @staticmethod
     def map_exception(exc: BaseException) -> tuple[int, str]:
         """Map an exception to a (status_code, message) tuple.
-        
+
         Returns:
             (int, str): The HTTP status code and user-facing message.
         """
         # ── 422 Unprocessable Entity ──
         if isinstance(exc, (ContractViolationError, ValidationError)):
             return (422, f"Data Mismatch: {str(exc)}")
-            
+
         if isinstance(exc, SanitizationError):
             return (422, f"Content Validation Failed: {exc.details}")
 
@@ -53,7 +53,9 @@ class ExceptionMapper:
         return (500, f"Internal Error: {str(exc)}")
 
     @staticmethod
-    def format_sse_error(exc: BaseException, node_name: str | None = None) -> dict[str, Any]:
+    def format_sse_error(
+        exc: BaseException, node_name: str | None = None
+    ) -> dict[str, Any]:
         """Format an exception into an SSEEventError compatible payload."""
         code, message = ExceptionMapper.map_exception(exc)
         return {

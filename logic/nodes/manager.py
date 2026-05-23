@@ -25,15 +25,13 @@ async def manager_node(state: dict[str, Any]) -> dict[str, Any]:
 
     1. Logs the current swarm status.
     """
-    persona = state.get("persona")
+    state.get("persona")
 
     drafts = state.get("drafts", [])
     content = state.get("content")
     campaign_id = state.get("campaign_id", "unknown")
 
     logs_out: list[str] = []
-
-
 
     logs_out.append(
         f"[Manager] Swarm check-in — drafts: {len(drafts)}, "
@@ -42,7 +40,8 @@ async def manager_node(state: dict[str, Any]) -> dict[str, Any]:
 
     logger.info(
         "Manager node check-in  campaign=%s  drafts=%d",
-        campaign_id, len(drafts),
+        campaign_id,
+        len(drafts),
     )
 
     return {

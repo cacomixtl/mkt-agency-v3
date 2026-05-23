@@ -74,7 +74,7 @@ async def creative_worker_node(state: dict[str, Any]) -> dict[str, Any]:
     if is_revision:
         logs_out.append(
             f"[Creative] Attempt #{retry_count + 1} — incorporating feedback: "
-            f"\"{feedback[:80]}...\""
+            f'"{feedback[:80]}..."'
         )
     else:
         logs_out.append("[Creative] Generating initial draft...")
@@ -85,10 +85,12 @@ async def creative_worker_node(state: dict[str, Any]) -> dict[str, Any]:
         temperature=0.7,
     ).with_structured_output(MarketingContent)
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", _CREATIVE_SYSTEM_PROMPT),
-        ("user", _CREATIVE_USER_PROMPT),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", _CREATIVE_SYSTEM_PROMPT),
+            ("user", _CREATIVE_USER_PROMPT),
+        ]
+    )
     chain = prompt | llm
 
     # Fallbacks in case state is malformed
@@ -116,11 +118,11 @@ async def creative_worker_node(state: dict[str, Any]) -> dict[str, Any]:
         content = MarketingContent(
             caption="[MOCK CAPTION] This is a hardcoded placeholder caption generated in Mock Mode to prevent token burn.",
             image_prompt="[MOCK PROMPT] A generic, aesthetic placeholder image prompt.",
-            publish_targets=["instagram"]
+            publish_targets=["instagram"],
         )
     else:
         logs_out.append("[Creative] Invoking LLM (thinking...)")
-    
+
         try:
             # Wrapped in tenacity retry policy
             content: MarketingContent = await resilient_call(
@@ -140,7 +142,9 @@ async def creative_worker_node(state: dict[str, Any]) -> dict[str, Any]:
 
     logger.info(
         "Creative worker complete  campaign=%s  stage=%s  revision=%s",
-        campaign_id, stage, is_revision,
+        campaign_id,
+        stage,
+        is_revision,
     )
 
     return {

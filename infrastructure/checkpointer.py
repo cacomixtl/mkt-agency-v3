@@ -36,6 +36,7 @@ _pool: Optional[object] = None
 # Public API
 # ---------------------------------------------------------------------------
 
+
 async def init_checkpointer() -> bool:
     """Initialize the AsyncPostgresSaver and its connection pool.
 
@@ -58,8 +59,8 @@ async def init_checkpointer() -> bool:
     psycopg_url = _normalize_psycopg_url(raw_url)
 
     try:
-        from psycopg_pool import AsyncConnectionPool
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        from psycopg_pool import AsyncConnectionPool
 
         _pool = AsyncConnectionPool(
             conninfo=psycopg_url,
@@ -76,11 +77,15 @@ async def init_checkpointer() -> bool:
         _checkpointer = AsyncPostgresSaver(_pool)
         await _checkpointer.setup()
 
-        logger.info("LangGraph AsyncPostgresSaver initialized (tables created/verified)")
+        logger.info(
+            "LangGraph AsyncPostgresSaver initialized (tables created/verified)"
+        )
         return True
 
     except Exception as e:
-        logger.error("Failed to initialize LangGraph checkpointer: %s", e, exc_info=True)
+        logger.error(
+            "Failed to initialize LangGraph checkpointer: %s", e, exc_info=True
+        )
         _checkpointer = None
         _pool = None
         return False

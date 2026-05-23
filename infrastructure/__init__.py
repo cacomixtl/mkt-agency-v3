@@ -12,9 +12,9 @@ Public API:
     shutdown_v3_backend()   — shutdown: dispose engine + close pools
 """
 
-from infrastructure.lifecycle import init_v3_backend, shutdown_v3_backend
-from infrastructure.connection import get_db_session
 from infrastructure.checkpointer import get_checkpointer
+from infrastructure.connection import get_db_session
+from infrastructure.lifecycle import init_v3_backend, shutdown_v3_backend
 
 __all__ = [
     "get_db_session",

@@ -16,7 +16,7 @@ from typing import Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from CONTRACTS import Critique, RevisionEntry, DEFAULT_GUARDRAILS
+from CONTRACTS import DEFAULT_GUARDRAILS, Critique, RevisionEntry
 from guardrails import resilient_call, validate_node_output
 
 logger = logging.getLogger(__name__)
@@ -70,10 +70,12 @@ async def judge_worker_node(state: dict[str, Any]) -> dict[str, Any]:
         temperature=0.2,  # Low temp for analytical consistency
     ).with_structured_output(Critique)
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", _JUDGE_SYSTEM_PROMPT),
-        ("user", _JUDGE_USER_PROMPT),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", _JUDGE_SYSTEM_PROMPT),
+            ("user", _JUDGE_USER_PROMPT),
+        ]
+    )
     chain = prompt | llm
 
     tone = persona.tone if persona else "Professional"
@@ -97,14 +99,10 @@ async def judge_worker_node(state: dict[str, Any]) -> dict[str, Any]:
     if os.getenv("AGENCY_MOCK_LLM", "false").lower() == "true":
         logs_out.append("[Judge] MOCK MODE ACTIVE: Auto-passing content.")
         await asyncio.sleep(1.5)
-        critique = Critique(
-            grade="PASS",
-            feedback="Mock approval.",
-            vibe_score=9.5
-        )
+        critique = Critique(grade="PASS", feedback="Mock approval.", vibe_score=9.5)
     else:
         logs_out.append("[Judge] Invoking LLM auditor (thinking...)")
-    
+
         try:
             critique: Critique = await resilient_call(
                 chain.ainvoke,
@@ -125,7 +123,9 @@ async def judge_worker_node(state: dict[str, Any]) -> dict[str, Any]:
     if grade == "REVISION" and retry_count >= max_revisions:
         grade = "PASS"
         force_passed = True
-        feedback = f"FINOPS OVERRIDE: Max revisions reached. Original critique: {feedback}"
+        feedback = (
+            f"FINOPS OVERRIDE: Max revisions reached. Original critique: {feedback}"
+        )
         logs_out.append(
             f"[Judge] ⚠ FinOps override — force PASS at retry_count={retry_count}"
         )
@@ -138,10 +138,12 @@ async def judge_worker_node(state: dict[str, Any]) -> dict[str, Any]:
         logs_out.append(f"[Judge] Feedback: {feedback}")
 
     # ── Mutate Content & State ──
-    updated_content = content.model_copy(update={
-        "vibe_score": vibe_score,
-        "needs_revision": grade == "REVISION",
-    })
+    updated_content = content.model_copy(
+        update={
+            "vibe_score": vibe_score,
+            "needs_revision": grade == "REVISION",
+        }
+    )
 
     revision_entry = RevisionEntry(
         attempt=retry_count + 1,
@@ -156,7 +158,9 @@ async def judge_worker_node(state: dict[str, Any]) -> dict[str, Any]:
 
     logger.info(
         "Judge worker complete  campaign=%s  grade=%s  vibe=%.1f",
-        campaign_id, grade, vibe_score,
+        campaign_id,
+        grade,
+        vibe_score,
     )
 
     return {

@@ -40,11 +40,18 @@ _REFUSAL_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"as an ai(?: language)? model", re.IGNORECASE),
     re.compile(r"i(?:'m| am) (?:just )?(?:a|an) (?:language )?model", re.IGNORECASE),
     re.compile(r"i cannot (?:assist|help|provide|create|generate)", re.IGNORECASE),
-    re.compile(r"i(?:'m| am) unable to (?:assist|help|provide|create|generate)", re.IGNORECASE),
+    re.compile(
+        r"i(?:'m| am) unable to (?:assist|help|provide|create|generate)", re.IGNORECASE
+    ),
     re.compile(r"i(?:'m| am) not able to", re.IGNORECASE),
     re.compile(r"i can(?:no|')?t (?:do|fulfill|complete) that", re.IGNORECASE),
-    re.compile(r"my (?:programming|guidelines|policy) (?:prevents?|doesn'?t allow)", re.IGNORECASE),
-    re.compile(r"(?:sorry|apologies),? (?:but )?i (?:can(?:no|')?t|am unable)", re.IGNORECASE),
+    re.compile(
+        r"my (?:programming|guidelines|policy) (?:prevents?|doesn'?t allow)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:sorry|apologies),? (?:but )?i (?:can(?:no|')?t|am unable)", re.IGNORECASE
+    ),
     re.compile(r"this (?:request|prompt) (?:violates|goes against)", re.IGNORECASE),
     re.compile(r"i(?:'m| am) designed to (?:be helpful|avoid|not)", re.IGNORECASE),
 ]
@@ -62,14 +69,16 @@ def detect_refusal(text: str) -> str | None:
 
 
 def check_required_keys(
-    data: dict[str, Any], required_keys: Sequence[str],
+    data: dict[str, Any],
+    required_keys: Sequence[str],
 ) -> list[str]:
     """Return list of missing keys from data."""
     return [key for key in required_keys if key not in data]
 
 
 def check_empty_fields(
-    data: dict[str, Any], mandatory_text_fields: Sequence[str],
+    data: dict[str, Any],
+    mandatory_text_fields: Sequence[str],
 ) -> list[str]:
     """Return field names that are empty or whitespace-only."""
     empty: list[str] = []
@@ -94,7 +103,9 @@ def sanity_check(
     if text is not None:
         refusal_match = detect_refusal(text)
         if refusal_match:
-            raise SanitizationError("refusal", f"LLM refusal detected: '{refusal_match}'")
+            raise SanitizationError(
+                "refusal", f"LLM refusal detected: '{refusal_match}'"
+            )
 
     # 2. Refusal detection on dict string values
     if data is not None:

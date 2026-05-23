@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 # Custom Exception
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class ContractViolationError(Exception):
     """Raised when a node's output fails Pydantic validation.
 
@@ -90,6 +91,7 @@ CONTRACT_LIST_MAP: dict[str, Type[BaseModel]] = {
 # Validation Logic
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _validate_output(node_name: str, output: dict[str, Any]) -> None:
     """Validate a node's return dict against the CONTRACT_MAP.
 
@@ -127,8 +129,7 @@ def _validate_output(node_name: str, output: dict[str, Any]) -> None:
                 node_name=node_name,
                 field=key,
                 details=(
-                    f"Expected {model_cls.__name__} or dict, "
-                    f"got {type(value).__name__}"
+                    f"Expected {model_cls.__name__} or dict, got {type(value).__name__}"
                 ),
             )
 
@@ -171,6 +172,7 @@ def _validate_output(node_name: str, output: dict[str, Any]) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 # Decorator
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 def validate_node_output(fn: Callable) -> Callable:
     """Decorator that validates a LangGraph node's return value.

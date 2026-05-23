@@ -55,7 +55,7 @@ def supervisor_router(state: dict[str, Any]) -> str:
         else:
             logger.warning(
                 "Routing: APPROVAL (Max revisions %d reached, forcing HITL)",
-                max_revisions
+                max_revisions,
             )
             return "wait_for_approval"
 

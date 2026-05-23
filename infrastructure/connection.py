@@ -45,6 +45,7 @@ _session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 # URL normalization
 # ---------------------------------------------------------------------------
 
+
 def _normalize_asyncpg_url(raw: str) -> str:
     """Convert a raw DATABASE_URL to asyncpg format.
 
@@ -80,6 +81,7 @@ def _normalize_psycopg_url(raw: str) -> str:
 # ---------------------------------------------------------------------------
 # Engine & session factory
 # ---------------------------------------------------------------------------
+
 
 def _get_database_url() -> Optional[str]:
     """Read DATABASE_URL from the environment (never hardcoded)."""
@@ -159,6 +161,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 # ---------------------------------------------------------------------------
 # Teardown
 # ---------------------------------------------------------------------------
+
 
 async def dispose_engine() -> None:
     """Dispose of the async engine and release all pooled connections."""

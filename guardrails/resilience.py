@@ -32,10 +32,10 @@ import httpx
 from tenacity import (
     AsyncRetrying,
     RetryError,
+    before_sleep_log,
     retry_if_exception,
     stop_after_attempt,
     wait_exponential,
-    before_sleep_log,
 )
 
 from CONTRACTS import DEFAULT_GUARDRAILS
@@ -48,6 +48,7 @@ T = TypeVar("T")
 # ═══════════════════════════════════════════════════════════════════════════
 # Custom Exception
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class ProviderUnavailableError(Exception):
     """Raised after all retry attempts are exhausted.
@@ -103,16 +104,19 @@ def _is_retryable(exc: BaseException) -> bool:
         - Provider "overloaded" messages in error text
     """
     # ── Connection-level errors ──
-    if isinstance(exc, (
-        ConnectionError,
-        TimeoutError,
-        OSError,
-        httpx.ConnectError,
-        httpx.ConnectTimeout,
-        httpx.ReadTimeout,
-        httpx.WriteTimeout,
-        httpx.PoolTimeout,
-    )):
+    if isinstance(
+        exc,
+        (
+            ConnectionError,
+            TimeoutError,
+            OSError,
+            httpx.ConnectError,
+            httpx.ConnectTimeout,
+            httpx.ReadTimeout,
+            httpx.WriteTimeout,
+            httpx.PoolTimeout,
+        ),
+    ):
         return True
 
     # ── HTTP status-based errors ──
@@ -132,6 +136,7 @@ def _is_retryable(exc: BaseException) -> bool:
 # ═══════════════════════════════════════════════════════════════════════════
 # Public API
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 async def resilient_call(
     fn: Callable[..., Any],
@@ -189,7 +194,9 @@ async def resilient_call(
         last = exc.last_attempt.exception() if exc.last_attempt else None
         logger.error(
             "Circuit breaker tripped for '%s' after %d attempts: %s",
-            operation_name, attempts, last,
+            operation_name,
+            attempts,
+            last,
         )
         raise ProviderUnavailableError(
             operation_name=operation_name,

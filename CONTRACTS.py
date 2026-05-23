@@ -28,7 +28,6 @@ from typing import Any, Literal, Optional, Union
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import TypedDict
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # §1  ENUMS & CONSTANTS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -64,15 +63,15 @@ Each mood maps to a prefix template in the image worker.
 # --- Campaign Lifecycle ---
 
 CampaignStage = Literal[
-    "draft",            # Creative is generating initial content
-    "reviewing",        # Critic is evaluating the content
-    "revising",         # Creative is incorporating critic feedback
-    "generating_image", # Image worker is producing visuals
-    "awaiting_approval",# HITL gate — waiting for director decision
-    "approved",         # Director approved — queued for publish
-    "published",        # Content delivered to target platform
-    "vetoed",           # Director rejected the content
-    "failed",           # Unrecoverable error in the pipeline
+    "draft",  # Creative is generating initial content
+    "reviewing",  # Critic is evaluating the content
+    "revising",  # Creative is incorporating critic feedback
+    "generating_image",  # Image worker is producing visuals
+    "awaiting_approval",  # HITL gate — waiting for director decision
+    "approved",  # Director approved — queued for publish
+    "published",  # Content delivered to target platform
+    "vetoed",  # Director rejected the content
+    "failed",  # Unrecoverable error in the pipeline
 ]
 
 CriticGrade = Literal["PASS", "REVISION"]
@@ -106,6 +105,7 @@ Web UI supports full HITL actions (approve, reject, edit, revise).
 # §2  PERSONA SYSTEM
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class PersonaConfig(BaseModel):
     """The brand identity configuration injected into every agent.
 
@@ -120,9 +120,7 @@ class PersonaConfig(BaseModel):
     name: str = Field(
         description="Human-readable persona identifier (e.g. 'Silicon Labor')"
     )
-    tone: BrandTone = Field(
-        description="The tonal register for written output"
-    )
+    tone: BrandTone = Field(description="The tonal register for written output")
     custom_tone_description: Optional[str] = Field(
         default=None,
         description=(
@@ -172,9 +170,7 @@ class PersonaConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_custom_tone(self) -> "PersonaConfig":
         if self.tone == "Custom" and not self.custom_tone_description:
-            raise ValueError(
-                "custom_tone_description is required when tone='Custom'"
-            )
+            raise ValueError("custom_tone_description is required when tone='Custom'")
         return self
 
 
@@ -189,14 +185,29 @@ PERSONA_NOCTURNAL_AUDITOR = PersonaConfig(
     visual_mood="High-Contrast B&W",
     brand_philosophy="Byung-Chul Han's Burnout Society / Baudrillard's hyper-reality",
     vocabulary_register=[
-        "transparency", "burnout", "fatigue", "simulation",
-        "the copy", "the hyperreal", "smooth surfaces",
-        "digital silence", "exhaustion", "achievement-subject",
+        "transparency",
+        "burnout",
+        "fatigue",
+        "simulation",
+        "the copy",
+        "the hyperreal",
+        "smooth surfaces",
+        "digital silence",
+        "exhaustion",
+        "achievement-subject",
     ],
     prohibited_terms=[
-        "game-changer", "revolutionary", "unleash", "skyrocket",
-        "amazing", "incredible", "best ever", "don't miss out",
-        "limited time", "act now", "exclusive offer",
+        "game-changer",
+        "revolutionary",
+        "unleash",
+        "skyrocket",
+        "amazing",
+        "incredible",
+        "best ever",
+        "don't miss out",
+        "limited time",
+        "act now",
+        "exclusive offer",
     ],
     default_aspect_ratio="9:16",
     default_publish_targets=["instagram", "threads"],
@@ -212,14 +223,28 @@ PERSONA_VELVET_DISPATCH = PersonaConfig(
         "aura, nostalgia, and the melancholy of objects stripped of their origin"
     ),
     vocabulary_register=[
-        "aura", "reproduction", "nostalgia", "patina",
-        "provenance", "the original", "mechanical",
-        "distance", "trace", "fading",
+        "aura",
+        "reproduction",
+        "nostalgia",
+        "patina",
+        "provenance",
+        "the original",
+        "mechanical",
+        "distance",
+        "trace",
+        "fading",
     ],
     prohibited_terms=[
-        "game-changer", "revolutionary", "unleash", "amazing",
-        "incredible", "hurry", "flash sale", "FOMO",
-        "best ever", "once in a lifetime",
+        "game-changer",
+        "revolutionary",
+        "unleash",
+        "amazing",
+        "incredible",
+        "hurry",
+        "flash sale",
+        "FOMO",
+        "best ever",
+        "once in a lifetime",
     ],
     default_aspect_ratio="4:5",
     default_publish_targets=["instagram"],
@@ -235,14 +260,27 @@ PERSONA_FERRO_STATIC = PersonaConfig(
         "alternatives, hauntology, and the slow cancellation of the future"
     ),
     vocabulary_register=[
-        "capitalist realism", "hauntology", "the weird",
-        "lost futures", "nostalgia mode", "depressive hedonia",
-        "the eerie", "cancelled future", "reflexive impotence",
+        "capitalist realism",
+        "hauntology",
+        "the weird",
+        "lost futures",
+        "nostalgia mode",
+        "depressive hedonia",
+        "the eerie",
+        "cancelled future",
+        "reflexive impotence",
     ],
     prohibited_terms=[
-        "game-changer", "disruptive", "synergy", "leverage",
-        "unlock your potential", "empower", "thrive",
-        "crushing it", "hustle", "grind",
+        "game-changer",
+        "disruptive",
+        "synergy",
+        "leverage",
+        "unlock your potential",
+        "empower",
+        "thrive",
+        "crushing it",
+        "hustle",
+        "grind",
     ],
     default_aspect_ratio="9:16",
     default_publish_targets=["threads"],
@@ -259,6 +297,7 @@ PERSONA_REGISTRY: dict[str, PersonaConfig] = {
 # ═══════════════════════════════════════════════════════════════════════════
 # §3  DOMAIN MODELS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class MarketingContent(BaseModel):
     """The primary output artifact produced by the Creative Worker.
@@ -312,9 +351,7 @@ class MarketingContent(BaseModel):
     def _validate_aspect_ratio(cls, v: str) -> str:
         allowed = {"9:16", "4:5", "1:1", "16:9"}
         if v not in allowed:
-            raise ValueError(
-                f"aspect_ratio must be one of {allowed}, got '{v}'"
-            )
+            raise ValueError(f"aspect_ratio must be one of {allowed}, got '{v}'")
         return v
 
 
@@ -377,19 +414,23 @@ class JudgeScores(BaseModel):
     """
 
     philosophy_fidelity: int = Field(
-        ge=1, le=5,
+        ge=1,
+        le=5,
         description="1=Marketing hype; 5=Deep philosophical observation",
     )
     visual_aesthetic: int = Field(
-        ge=1, le=5,
+        ge=1,
+        le=5,
         description="1=Generic prompt; 5=Precise, atmospheric prompt with style constraints",
     )
     tone_consistency: int = Field(
-        ge=1, le=5,
+        ge=1,
+        le=5,
         description="1=Emojis/hype; 5=Detached, objective-led observation",
     )
     visual_execution: int = Field(
-        ge=1, le=5,
+        ge=1,
+        le=5,
         description=(
             "1=Wrong style/aspect ratio or severe artifacts; "
             "5=Publication-ready, matches persona visual style"
@@ -422,6 +463,7 @@ class RevisionEntry(BaseModel):
 # §4  GRAPH STATE
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class V3AgencyState(TypedDict):
     """Shared state flowing through the LangGraph evaluator-optimizer loop.
 
@@ -447,22 +489,22 @@ class V3AgencyState(TypedDict):
     messages: list[Any]
     persona: PersonaConfig
     content: Optional[MarketingContent]
-    feedback: Optional[str]          # Critic writes, Creative reads
-    retry_count: int                 # loop sentinel — prevents infinite revisions
+    feedback: Optional[str]  # Critic writes, Creative reads
+    retry_count: int  # loop sentinel — prevents infinite revisions
 
     # ── Cockpit fields (V2-compatible) ──
     executive_briefing: Optional[str]
-    approval_mode: Optional[str]     # "active" | "passive"
-    shadow_mode: bool                # if True, publisher becomes debug-only
+    approval_mode: Optional[str]  # "active" | "passive"
+    shadow_mode: bool  # if True, publisher becomes debug-only
 
     # ── Error recovery (V2-compatible) ──
     last_error: Optional[str]
 
     # ── V3 additions ──
-    campaign_id: Optional[str]       # links to CockpitCampaign DB record
-    stage: Optional[CampaignStage]   # explicit lifecycle position
+    campaign_id: Optional[str]  # links to CockpitCampaign DB record
+    stage: Optional[CampaignStage]  # explicit lifecycle position
     revision_history: list[RevisionEntry]  # full audit trail
-    publish_targets: list[PublishTarget]   # where to deliver approved content
+    publish_targets: list[PublishTarget]  # where to deliver approved content
     interaction_channel: Optional[InteractionChannel]  # where HITL commands arrive
 
 
@@ -472,8 +514,10 @@ class V3AgencyState(TypedDict):
 
 # --- Standard Response Envelope ---
 
+
 class APIMeta(BaseModel):
     """Metadata block for every API response."""
+
     thread_id: str = Field(description="LangGraph thread identifier")
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
@@ -486,6 +530,7 @@ class APIEnvelope(BaseModel):
 
     Defined in BRIDGE_SPEC.md §1: The Handshake.
     """
+
     status: Literal["success", "error"] = "success"
     data: Any = Field(default=None, description="Response payload")
     meta: APIMeta
@@ -493,12 +538,14 @@ class APIEnvelope(BaseModel):
 
 # --- Request Bodies ---
 
+
 class CampaignStartRequest(BaseModel):
     """POST /campaign/start — Initialize a new campaign thread.
 
     The client can specify a persona by name (looked up from the registry)
     or provide a full PersonaConfig for custom personas.
     """
+
     persona_name: Optional[str] = Field(
         default=None,
         description="Name of a registered persona (e.g. 'Silicon Labor')",
@@ -518,9 +565,7 @@ class CampaignStartRequest(BaseModel):
     @model_validator(mode="after")
     def _validate_persona_source(self) -> "CampaignStartRequest":
         if not self.persona_name and not self.persona_config:
-            raise ValueError(
-                "Either persona_name or persona_config must be provided"
-            )
+            raise ValueError("Either persona_name or persona_config must be provided")
         return self
 
 
@@ -530,6 +575,7 @@ class CampaignResumeRequest(BaseModel):
     WhatsApp channel supports: approve, reject.
     Web UI channel supports:   approve, reject, edit, request_revision.
     """
+
     decision: Literal["approve", "reject", "edit", "request_revision"] = Field(
         description="The director's decision on the pending content",
     )
@@ -552,13 +598,9 @@ class CampaignResumeRequest(BaseModel):
     @model_validator(mode="after")
     def _validate_decision_payload(self) -> "CampaignResumeRequest":
         if self.decision == "edit" and not self.edited_content:
-            raise ValueError(
-                "edited_content is required when decision='edit'"
-            )
+            raise ValueError("edited_content is required when decision='edit'")
         if self.decision in ("reject", "request_revision") and not self.feedback:
-            raise ValueError(
-                f"feedback is required when decision='{self.decision}'"
-            )
+            raise ValueError(f"feedback is required when decision='{self.decision}'")
         # WhatsApp channel restrictions
         if self.channel == "whatsapp" and self.decision not in ("approve", "reject"):
             raise ValueError(
@@ -570,14 +612,17 @@ class CampaignResumeRequest(BaseModel):
 
 # --- SSE Event Models ---
 
+
 class SSEEventNodeStart(BaseModel):
     """SSE event: a specific agent has begun work."""
+
     event_type: Literal["node_start"] = "node_start"
     node_name: str
 
 
 class SSEEventAgentThought(BaseModel):
     """SSE event: real-time streaming of agent reasoning."""
+
     event_type: Literal["agent_thought"] = "agent_thought"
     text: str
     step: int = 0
@@ -585,6 +630,7 @@ class SSEEventAgentThought(BaseModel):
 
 class SSEEventBreakpoint(BaseModel):
     """SSE event: graph paused for Director intervention."""
+
     event_type: Literal["breakpoint"] = "breakpoint"
     breakpoint_type: Literal["approval_required"] = "approval_required"
     approval_mode: Literal["active", "passive"]
@@ -593,6 +639,7 @@ class SSEEventBreakpoint(BaseModel):
 
 class SSEEventCompletion(BaseModel):
     """SSE event: campaign is finalized."""
+
     event_type: Literal["completion"] = "completion"
     stage: CampaignStage
     publish_targets: list[PublishTarget] = Field(default_factory=list)
@@ -600,6 +647,7 @@ class SSEEventCompletion(BaseModel):
 
 class SSEEventError(BaseModel):
     """SSE event: an error occurred during processing."""
+
     event_type: Literal["error"] = "error"
     error_code: int
     message: str
@@ -620,6 +668,7 @@ SSEEvent = Union[
 # §6  GUARDRAIL CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class GuardrailConfig(BaseModel):
     """Centralized guardrail thresholds for the Agency V3 pipeline.
 
@@ -631,7 +680,8 @@ class GuardrailConfig(BaseModel):
     # --- Evaluator-Optimizer Loop ---
     max_revisions: int = Field(
         default=3,
-        ge=1, le=10,
+        ge=1,
+        le=10,
         description=(
             "Hard ceiling on creative→critic revision loops. "
             "Prevents recursive token sink.  At this limit, "
@@ -640,7 +690,8 @@ class GuardrailConfig(BaseModel):
     )
     recursion_limit: int = Field(
         default=15,
-        ge=5, le=100,
+        ge=5,
+        le=100,
         description=(
             "LangGraph graph.compile(recursion_limit=N). "
             "Hard stop for the entire graph execution."
@@ -668,7 +719,8 @@ class GuardrailConfig(BaseModel):
     # --- HITL Thresholds ---
     passive_approval_threshold: float = Field(
         default=8.5,
-        ge=0.0, le=10.0,
+        ge=0.0,
+        le=10.0,
         description=(
             "vibe_score >= this value triggers Passive approval path "
             "(auto-approve countdown).  Below this → Active (manual)."
@@ -678,7 +730,8 @@ class GuardrailConfig(BaseModel):
     # --- Retry & Resilience ---
     transient_retry_attempts: int = Field(
         default=3,
-        ge=1, le=10,
+        ge=1,
+        le=10,
         description="Tenacity retry attempts for transient API errors",
     )
     transient_retry_min_wait: float = Field(

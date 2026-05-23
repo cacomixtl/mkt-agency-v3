@@ -44,10 +44,10 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import DeclarativeBase
 
-
 # ---------------------------------------------------------------------------
 # Declarative Base for V3 models
 # ---------------------------------------------------------------------------
+
 
 class Base(DeclarativeBase):
     """Base class for all V3 ORM models.
@@ -55,12 +55,14 @@ class Base(DeclarativeBase):
     Uses its own metadata — completely independent from the V1
     SQLModel metadata in app/models/.
     """
+
     pass
 
 
 # ---------------------------------------------------------------------------
 # CampaignRecord
 # ---------------------------------------------------------------------------
+
 
 class CampaignRecord(Base):
     """Durable business-data record for a single campaign thread.

@@ -22,8 +22,6 @@ from __future__ import annotations
 import operator
 from typing import Annotated, Any, Optional
 
-from pydantic import BaseModel
-
 from CONTRACTS import (
     CampaignStage,
     InteractionChannel,
@@ -32,7 +30,6 @@ from CONTRACTS import (
     PublishTarget,
     RevisionEntry,
 )
-
 
 
 class V3GraphState:
@@ -50,7 +47,9 @@ class V3GraphState:
     # ── Core pipeline state (V2-compatible) ──
     messages: Annotated[list[Any], operator.add]
     persona: PersonaConfig
-    content: Optional[MarketingContent]  # Pointer to latest draft for backwards compatibility
+    content: Optional[
+        MarketingContent
+    ]  # Pointer to latest draft for backwards compatibility
     feedback: Optional[str]
     retry_count: int
 
@@ -68,7 +67,6 @@ class V3GraphState:
     revision_history: Annotated[list[RevisionEntry], operator.add]
     publish_targets: list[PublishTarget]
     interaction_channel: Optional[InteractionChannel]
-
 
     drafts: Annotated[list[MarketingContent], operator.add]
 

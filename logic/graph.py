@@ -30,12 +30,12 @@ import logging
 
 from langgraph.graph import END, StateGraph
 
-from logic.state import V3GraphState
-from logic.nodes.manager import manager_node
+from logic.nodes.approval import approval_node
 from logic.nodes.creative import creative_worker_node
 from logic.nodes.judge import judge_worker_node
-from logic.nodes.approval import approval_node
+from logic.nodes.manager import manager_node
 from logic.routing import supervisor_router
+from logic.state import V3GraphState
 
 logger = logging.getLogger(__name__)
 

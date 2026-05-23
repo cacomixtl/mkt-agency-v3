@@ -36,12 +36,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from CONTRACTS import (
+    PERSONA_REGISTRY,
     APIEnvelope,
     APIMeta,
     CampaignStartRequest,
-    PERSONA_REGISTRY,
 )
-from infrastructure import init_v3_backend, shutdown_v3_backend, get_checkpointer
+from infrastructure import get_checkpointer, init_v3_backend, shutdown_v3_backend
 from infrastructure.connection import get_db_session
 from logic import build_v3_graph
 from models.campaign import CampaignRecord
@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Campaign Run Tracker — in-memory event bus per thread_id
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class CampaignRun:
@@ -89,6 +90,7 @@ in memory so late SSE subscribers can replay events."""
 # ---------------------------------------------------------------------------
 # Lifespan (startup / shutdown)
 # ---------------------------------------------------------------------------
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -143,8 +145,8 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 
 _allowed_origins: list[str] = [
-    "http://localhost:3000",     # Vite dev server (configured port)
-    "http://localhost:5173",     # Vite default fallback
+    "http://localhost:3000",  # Vite dev server (configured port)
+    "http://localhost:5173",  # Vite default fallback
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
     "https://frontend-v3-production-5ee4.up.railway.app",
@@ -169,6 +171,7 @@ app.add_middleware(
 # Health Check
 # ---------------------------------------------------------------------------
 
+
 @app.get("/", response_model=APIEnvelope, tags=["health"])
 async def root():
     """Root health check — returns a minimal APIEnvelope."""
@@ -185,6 +188,7 @@ async def root():
 # ---------------------------------------------------------------------------
 # POST /campaign/start (BRIDGE_SPEC.md §2)
 # ---------------------------------------------------------------------------
+
 
 async def _run_graph(
     graph: Any,
@@ -203,17 +207,21 @@ async def _run_graph(
     try:
         step = 0
         async for event in graph.astream_events(
-            initial_state, config=config, version="v2",
+            initial_state,
+            config=config,
+            version="v2",
         ):
             kind = event.get("event", "")
             name = event.get("name", "")
 
             # ── Node start ──
             if kind == "on_chain_start" and name and name != "LangGraph":
-                run.sse_events.append((
-                    "node_start",
-                    {"event_type": "node_start", "node_name": name},
-                ))
+                run.sse_events.append(
+                    (
+                        "node_start",
+                        {"event_type": "node_start", "node_name": name},
+                    )
+                )
 
             # ── Node end — extract logs and stage from output ──
             if kind == "on_chain_end" and name and name != "LangGraph":
@@ -221,52 +229,61 @@ async def _run_graph(
                 if isinstance(output, dict):
                     for log_line in output.get("logs", []):
                         step += 1
-                        run.sse_events.append((
-                            "agent_thought",
-                            {
-                                "event_type": "agent_thought",
-                                "text": log_line,
-                                "step": step,
-                            },
-                        ))
+                        run.sse_events.append(
+                            (
+                                "agent_thought",
+                                {
+                                    "event_type": "agent_thought",
+                                    "text": log_line,
+                                    "step": step,
+                                },
+                            )
+                        )
 
                     new_stage = output.get("stage")
                     if new_stage:
-                        run.sse_events.append((
-                            "completion",
-                            {
-                                "event_type": "completion",
-                                "stage": new_stage,
-                                "publish_targets": output.get(
-                                    "publish_targets", []
-                                ),
-                            },
-                        ))
+                        run.sse_events.append(
+                            (
+                                "completion",
+                                {
+                                    "event_type": "completion",
+                                    "stage": new_stage,
+                                    "publish_targets": output.get(
+                                        "publish_targets", []
+                                    ),
+                                },
+                            )
+                        )
 
         # ── Check if paused for HITL ──
         state_snapshot = await graph.aget_state(config)
         if state_snapshot and state_snapshot.next:
             vals = state_snapshot.values
-            run.sse_events.append((
-                "breakpoint",
-                {
-                    "event_type": "breakpoint",
-                    "breakpoint_type": "approval_required",
-                    "approval_mode": vals.get("approval_mode", "active"),
-                    "preview": vals.get("content"),
-                }
-            ))
+            run.sse_events.append(
+                (
+                    "breakpoint",
+                    {
+                        "event_type": "breakpoint",
+                        "breakpoint_type": "approval_required",
+                        "approval_mode": vals.get("approval_mode", "active"),
+                        "preview": vals.get("content"),
+                    },
+                )
+            )
 
         logger.info("Graph execution complete  thread_id=%s", thread_id)
 
     except Exception as e:
         logger.error(
             "Graph execution failed  thread_id=%s  error=%s",
-            thread_id, e, exc_info=True,
+            thread_id,
+            e,
+            exc_info=True,
         )
         # ── Mark campaign as failed in DB ──
         try:
             from sqlalchemy import update
+
             async with get_db_session() as session:
                 stmt = (
                     update(CampaignRecord)
@@ -279,15 +296,17 @@ async def _run_graph(
             logger.error("Failed to update campaign state to failed: %s", db_err)
 
         run.error = str(e)
-        run.sse_events.append((
-            "error",
-            {
-                "event_type": "error",
-                "error_code": 500,
-                "message": str(e),
-                "node_name": None,
-            },
-        ))
+        run.sse_events.append(
+            (
+                "error",
+                {
+                    "event_type": "error",
+                    "error_code": 500,
+                    "message": str(e),
+                    "node_name": None,
+                },
+            )
+        )
     finally:
         run.done.set()
 
@@ -375,7 +394,9 @@ async def campaign_start(body: CampaignStartRequest):
 
     logger.info(
         "Campaign started  thread_id=%s  persona=%s  niche=%.60s",
-        thread_id, resolved_persona.name, body.niche,
+        thread_id,
+        resolved_persona.name,
+        body.niche,
     )
 
     return APIEnvelope(
@@ -397,6 +418,7 @@ async def campaign_start(body: CampaignStartRequest):
 # GET /campaign/{campaign_id}/state (BRIDGE_SPEC.md §2)
 # ---------------------------------------------------------------------------
 
+
 @app.get(
     "/campaign/{campaign_id}/state",
     response_model=APIEnvelope,
@@ -410,9 +432,7 @@ async def campaign_state(campaign_id: str):
     it will come from the LangGraph checkpointer in a future task.
     """
     async with get_db_session() as session:
-        stmt = select(CampaignRecord).where(
-            CampaignRecord.thread_id == campaign_id
-        )
+        stmt = select(CampaignRecord).where(CampaignRecord.thread_id == campaign_id)
         result = await session.execute(stmt)
         record = result.scalar_one_or_none()
 
@@ -425,29 +445,28 @@ async def campaign_state(campaign_id: str):
     # ── Hydrate with LangGraph pre-crash/current state ──
     graph = app.state.graph
     config = {"configurable": {"thread_id": campaign_id}}
-    
+
     stage = record.stage
     vibe_score = record.vibe_score
     retry_count = record.retry_count
-    
+
     try:
         state_snapshot = await graph.aget_state(config)
         if state_snapshot and state_snapshot.values:
             vals = state_snapshot.values
             if "stage" in vals and vals["stage"]:
-                # Don't override 'failed' DB state if graph state says otherwise 
+                # Don't override 'failed' DB state if graph state says otherwise
                 # (since the DB was explicitly marked failed on crash)
                 if record.stage != "failed":
                     stage = vals["stage"]
-            
+
             if "content" in vals and vals["content"]:
                 vibe_score = vals["content"].get("vibe_score", vibe_score)
-                
+
             retry_count = vals.get("retry_count", retry_count)
     except Exception as e:
         logger.warning(
-            "Could not fetch LangGraph state for campaign_id=%s: %s", 
-            campaign_id, e
+            "Could not fetch LangGraph state for campaign_id=%s: %s", campaign_id, e
         )
 
     return APIEnvelope(
@@ -477,6 +496,7 @@ async def campaign_state(campaign_id: str):
 # ---------------------------------------------------------------------------
 # GET /campaign/{campaign_id}/stream (BRIDGE_SPEC.md §3 — SSE)
 # ---------------------------------------------------------------------------
+
 
 def _sse_frame(event_type: str, data: dict) -> str:
     """Format a single SSE frame: ``event: <type>\\ndata: <json>\\n\\n``."""
@@ -532,42 +552,50 @@ async def campaign_stream(campaign_id: str, request: Request):
                     vals = state_snapshot.values
                     final_stage = vals.get("stage", "draft")
 
-                    for i, log_line in enumerate(
-                        vals.get("logs", []), 1
-                    ):
-                        yield _sse_frame("agent_thought", {
-                            "event_type": "agent_thought",
-                            "text": log_line,
-                            "step": i,
-                        })
+                    for i, log_line in enumerate(vals.get("logs", []), 1):
+                        yield _sse_frame(
+                            "agent_thought",
+                            {
+                                "event_type": "agent_thought",
+                                "text": log_line,
+                                "step": i,
+                            },
+                        )
 
-                    yield _sse_frame("completion", {
-                        "event_type": "completion",
-                        "stage": final_stage,
-                        "publish_targets": vals.get(
-                            "publish_targets", []
-                        ),
-                    })
+                    yield _sse_frame(
+                        "completion",
+                        {
+                            "event_type": "completion",
+                            "stage": final_stage,
+                            "publish_targets": vals.get("publish_targets", []),
+                        },
+                    )
                 else:
-                    yield _sse_frame("error", {
-                        "event_type": "error",
-                        "error_code": 404,
-                        "message": (
-                            f"No data found for thread_id={campaign_id}"
-                        ),
-                        "node_name": None,
-                    })
+                    yield _sse_frame(
+                        "error",
+                        {
+                            "event_type": "error",
+                            "error_code": 404,
+                            "message": (f"No data found for thread_id={campaign_id}"),
+                            "node_name": None,
+                        },
+                    )
             except Exception as e:
                 logger.error(
                     "SSE checkpoint replay error  thread_id=%s  error=%s",
-                    campaign_id, e, exc_info=True,
+                    campaign_id,
+                    e,
+                    exc_info=True,
                 )
-                yield _sse_frame("error", {
-                    "event_type": "error",
-                    "error_code": 500,
-                    "message": str(e),
-                    "node_name": None,
-                })
+                yield _sse_frame(
+                    "error",
+                    {
+                        "event_type": "error",
+                        "error_code": 500,
+                        "message": str(e),
+                        "node_name": None,
+                    },
+                )
 
     return StreamingResponse(
         _event_generator(),

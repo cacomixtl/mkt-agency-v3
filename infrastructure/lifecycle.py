@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from infrastructure.connection import get_engine, dispose_engine
 from infrastructure.checkpointer import init_checkpointer, shutdown_checkpointer
+from infrastructure.connection import dispose_engine, get_engine
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +84,7 @@ async def init_v3_backend() -> BackendHealthReport:
 
     # ── Summary ──
     logger.info(
-        "V3 backend initialized  "
-        "(engine=%s, pgvector=%s, tables=%s, checkpointer=%s)",
+        "V3 backend initialized  (engine=%s, pgvector=%s, tables=%s, checkpointer=%s)",
         report.engine_ready,
         report.pgvector_available,
         report.tables_created,
