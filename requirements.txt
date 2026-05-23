@@ -37,3 +37,7 @@ httpx
 # RAG
 langchain-text-splitters
 python-dateutil
+
+# CI/CD Quality Gates
+pytest>=8.0.0
+ruff>=0.3.0

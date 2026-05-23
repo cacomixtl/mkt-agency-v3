@@ -1,0 +1,131 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Agency V3 Monorepo CI
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Monorepo-aware pipeline with per-job path filtering.
+#
+# Architecture:
+#   1. detect-changes — Determines which services were modified.
+#   2. backend-ci     — Python lint (Ruff) + V3 unit tests (pytest).
+#   3. frontend-ci    — TypeScript type-check + Vite production build.
+#
+# Path filtering:
+#   GitHub Actions 'on.push.paths' is WORKFLOW-level — it would skip
+#   the entire pipeline if only one service changed.  For per-JOB
+#   filtering in a monorepo, we use dorny/paths-filter to detect
+#   which directories were touched, then gate each job with an 'if'.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+name: Agency V3 Monorepo CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs on the same branch/PR to save CI minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------
+  # JOB 0: DETECT CHANGED PATHS
+  # ---------------------------------------------------------------
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Filter Paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - '**.py'
+              - 'requirements.txt'
+              - 'pyproject.toml'
+              - 'pytest.ini'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'ui/**'
+              - '.github/workflows/ci.yml'
+
+  # ---------------------------------------------------------------
+  # JOB 1: BACKEND VERIFICATION (Python + FastAPI)
+  # ---------------------------------------------------------------
+  backend-ci:
+    name: Backend CI
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint Check (Ruff)
+        run: ruff check .
+
+      - name: Format Check (Ruff)
+        run: ruff format --check .
+
+      - name: Run V3 Unit Tests
+        run: python -m pytest tests/ -v
+        # pytest.ini handles:
+        #   asyncio_mode = auto    → seamless async test execution
+        #   norecursedirs          → tests/legacy/ auto-excluded
+
+  # ---------------------------------------------------------------
+  # JOB 2: FRONTEND VERIFICATION (TypeScript + Vite)
+  # ---------------------------------------------------------------
+  frontend-ci:
+    name: Frontend CI
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ui
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: TypeScript Type Check
+        run: npm run lint  # tsc --noEmit
+
+      - name: Production Build
+        run: npm run build  # tsc -b && vite build
