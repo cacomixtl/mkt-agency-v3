@@ -22,9 +22,9 @@ from dotenv import load_dotenv
 
 # Load .env so os.getenv() picks up DATABASE_URL and pool tuning knobs
 load_dotenv()
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional  # noqa: E402
 
-from sqlalchemy.ext.asyncio import (
+from sqlalchemy.ext.asyncio import (  # noqa: E402
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,

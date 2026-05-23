@@ -30,7 +30,8 @@ def test_fastapi_app_compilation():
 def test_langgraph_orchestrator_compilation():
     """
     Compilation & Import Smoke Test: LangGraph Orchestrator.
-    Proves the workflow graph can be constructed without syntax or state definition errors.
+    Proves the workflow graph can be constructed without
+    syntax or state definition errors.
     """
     try:
         from logic import build_v3_graph

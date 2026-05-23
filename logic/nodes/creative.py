@@ -116,8 +116,13 @@ async def creative_worker_node(state: dict[str, Any]) -> dict[str, Any]:
         logs_out.append("[Creative] MOCK MODE ACTIVE: Bypassing Gemini API.")
         await asyncio.sleep(2)
         content = MarketingContent(
-            caption="[MOCK CAPTION] This is a hardcoded placeholder caption generated in Mock Mode to prevent token burn.",
-            image_prompt="[MOCK PROMPT] A generic, aesthetic placeholder image prompt.",
+            caption=(
+                "[MOCK CAPTION] This is a hardcoded placeholder "
+                "caption generated in Mock Mode to prevent token burn."
+            ),
+            image_prompt=(
+                "[MOCK PROMPT] A generic, aesthetic placeholder image prompt."
+            ),
             publish_targets=["instagram"],
         )
     else:

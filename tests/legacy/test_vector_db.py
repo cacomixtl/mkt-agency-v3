@@ -11,10 +11,10 @@ from dotenv import load_dotenv
 # Ensure we load env vars before importing app modules
 load_dotenv()
 
-from app.core.database import get_session
-from app.models.conversation import ConversationChunk
-from app.services.agent.service import _get_embedding
-from sqlmodel import select
+from app.core.database import get_session  # noqa: E402
+from app.models.conversation import ConversationChunk  # noqa: E402
+from app.services.agent.service import _get_embedding  # noqa: E402
+from sqlmodel import select  # noqa: E402
 
 
 async def audit_vector_db():
@@ -48,13 +48,16 @@ async def audit_vector_db():
 
             if not chunks:
                 print(
-                    "⚠️ No conversation chunks found in the database. Send some messages to the bot first!"
+                    "⚠️ No conversation chunks found in the "
+                    "database. Send some messages to the "
+                    "bot first!"
                 )
                 return
 
             print(f"✅ Found {len(chunks)} closest chunks:\n")
             for i, chunk in enumerate(chunks, 1):
-                # We can calculate the raw distance if we want, but pgvector orders them implicitly
+                # We can calculate the raw distance if we want,
+                # but pgvector orders them implicitly
                 print(f"--- Neighborhood Rank #{i} ---")
                 print(f"Phone: {chunk.user_phone}")
                 print(f"Role: {chunk.role}")

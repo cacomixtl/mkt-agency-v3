@@ -32,8 +32,11 @@ Forbidden Terms: {forbidden_terms}
 
 EVALUATION RULES:
 1. Return a structured Critique object.
-2. `grade` MUST be "PASS" if the content strictly follows all constraints and contains NO emojis.
-3. `grade` MUST be "REVISION" if emojis are used, forbidden terms are present, or tone/visuals/philosophy misalign.
+2. `grade` MUST be "PASS" if the content strictly follows
+all constraints and contains NO emojis.
+3. `grade` MUST be "REVISION" if emojis are used,
+forbidden terms are present,
+or tone/visuals/philosophy misalign.
 4. If "REVISION", `feedback` must explicitly cite the exact failure.
 5. Provide a `vibe_score` (0.0 to 10.0) representing brand alignment.
 """

@@ -253,7 +253,9 @@ PERSONA_VELVET_DISPATCH = PersonaConfig(
 PERSONA_FERRO_STATIC = PersonaConfig(
     name="Ferro Static",
     tone="Sardonic",
-    visual_style="Neon-lit industrial, cyberpunk grain, deep blacks with electric accents",
+    visual_style=(
+        "Neon-lit industrial, cyberpunk grain, deep blacks with electric accents"
+    ),
     visual_mood="Neon Noir",
     brand_philosophy=(
         "Mark Fisher's Capitalist Realism — the impossibility of imagining "
@@ -339,7 +341,9 @@ class MarketingContent(BaseModel):
     )
     image_urls: list[str] = Field(
         default_factory=list,
-        description="Public URLs or local paths of generated images (set by Image Worker)",
+        description=(
+            "Public URLs or local paths of generated images (set by Image Worker)"
+        ),
     )
     publish_targets: list[PublishTarget] = Field(
         default_factory=lambda: ["instagram"],
@@ -421,7 +425,9 @@ class JudgeScores(BaseModel):
     visual_aesthetic: int = Field(
         ge=1,
         le=5,
-        description="1=Generic prompt; 5=Precise, atmospheric prompt with style constraints",
+        description=(
+            "1=Generic prompt; 5=Precise, atmospheric prompt with style constraints"
+        ),
     )
     tone_consistency: int = Field(
         ge=1,

@@ -2,7 +2,8 @@
 Pre-Flight CI/CD Smoke Tests: Contract Handshake Verification.
 
 Role: Staff Quality & Reliability Engineer
-Objective: Validate the foundational Pydantic models in CONTRACTS.py against mock payloads
+Objective: Validate the foundational Pydantic models
+in CONTRACTS.py against mock payloads
 to ensure strict data integrity.
 """
 

@@ -23,7 +23,8 @@ from guardrails import (
 
 
 def test_contract_validator_missing_key():
-    """Simulate a node returning a dictionary with a missing key for MarketingContent."""
+    """Simulate a node returning a dictionary with a missing
+    key for MarketingContent."""
 
     @validate_node_output
     def dummy_node(state):
@@ -62,7 +63,7 @@ def test_contract_validator_success():
 # 2. The Sentry (Resilience) Tests
 # ═══════════════════════════════════════════════════════════════════════════
 
-import httpx
+import httpx  # noqa: E402
 
 
 @pytest.mark.asyncio
