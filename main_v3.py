@@ -41,10 +41,9 @@ from CONTRACTS import (
     APIMeta,
     CampaignStartRequest,
 )
-
 from infrastructure.checkpointer import get_checkpointer
-from infrastructure.lifecycle import init_v3_backend, shutdown_v3_backend
 from infrastructure.connection import get_db_session
+from infrastructure.lifecycle import init_v3_backend, shutdown_v3_backend
 from logic import build_v3_graph
 from models.campaign import CampaignRecord
 
