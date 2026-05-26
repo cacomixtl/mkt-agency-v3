@@ -56,11 +56,12 @@ def _get_embeddings_model():
     from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
     _embeddings_model = GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",
+        model="gemini-embedding-2",
         google_api_key=api_key,
+        output_dimensionality=EMBEDDING_DIM,
     )
     logger.info(
-        "Embedding model initialized: text-embedding-004 (%d dims)", EMBEDDING_DIM
+        "Embedding model initialized: gemini-embedding-2 (%d dims)", EMBEDDING_DIM
     )
     return _embeddings_model
 
