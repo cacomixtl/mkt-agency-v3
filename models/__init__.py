@@ -9,5 +9,6 @@ All fields must align with the Pydantic models in CONTRACTS.py.
 """
 
 from models.campaign import CampaignRecord
+from models.embedding import ConversationEmbedding
 
-__all__ = ["CampaignRecord"]
+__all__ = ["CampaignRecord", "ConversationEmbedding"]

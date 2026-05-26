@@ -465,6 +465,41 @@ class RevisionEntry(BaseModel):
     )
 
 
+class EmbeddingMeta(BaseModel):
+    """Metadata attached to every stored conversation embedding.
+
+    Standardizes the filterable fields so that retrieval queries
+    and storage calls agree on the shape.  Does NOT define the
+    vector or storage layer — that is an infrastructure concern.
+
+    Used by:
+        - infrastructure/rag.py (store_embedding, search_similar)
+        - Future graph nodes that write embeddings after each step
+    """
+
+    thread_id: str = Field(
+        description="LangGraph thread identifier — scopes retrieval to a single user",
+    )
+    node_name: str = Field(
+        description=(
+            "The graph node that produced the embedded text "
+            "(e.g. 'creative_worker', 'critic_worker')"
+        ),
+    )
+    persona_name: str = Field(
+        default="",
+        description="Resolved persona name at the time of embedding",
+    )
+    niche: str = Field(
+        default="",
+        description="Business/product brief associated with this thread",
+    )
+    stage: Optional[CampaignStage] = Field(
+        default=None,
+        description="Campaign stage when the embedding was created",
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # §4  GRAPH STATE
 # ═══════════════════════════════════════════════════════════════════════════

@@ -67,6 +67,7 @@ async def init_v3_backend() -> BackendHealthReport:
     try:
         # Import the V3 Base so metadata knows about our models
         from models.campaign import Base  # noqa: F401
+        from models.embedding import ConversationEmbedding  # noqa: F401
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)

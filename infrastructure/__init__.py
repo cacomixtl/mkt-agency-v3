@@ -10,15 +10,21 @@ Public API:
     get_checkpointer()      — returns the AsyncPostgresSaver singleton
     init_v3_backend()       — startup: engine + tables + checkpointer
     shutdown_v3_backend()   — shutdown: dispose engine + close pools
+    store_embedding()       — embed text and write to pgvector
+    search_similar()        — tenant-scoped vector similarity search
 """
 
 from infrastructure.checkpointer import get_checkpointer
 from infrastructure.connection import get_db_session
 from infrastructure.lifecycle import init_v3_backend, shutdown_v3_backend
+from infrastructure.rag import search_similar, store_embedding
 
 __all__ = [
     "get_db_session",
     "get_checkpointer",
     "init_v3_backend",
     "shutdown_v3_backend",
+    "store_embedding",
+    "search_similar",
 ]
+
