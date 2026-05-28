@@ -13,8 +13,10 @@ Current topology (Supervisor Swarm):
                  ├── [conditional] ──→ creative_worker ──┐
                  ├── [conditional] ──→ judge_worker ─────┤
                  └── [conditional] ──→ wait_for_approval │
-                                            │            │
-    END ←───────────────────────────────────┘            │
+                                             │           │
+                                       publisher_node    │
+                                             │           │
+    END ←────────────────────────────────────┘           │
       ↑                                                  │
       └──────────────────────────────────────────────────┘
 
@@ -34,6 +36,7 @@ from logic.nodes.approval import approval_node
 from logic.nodes.creative import creative_worker_node
 from logic.nodes.judge import judge_worker_node
 from logic.nodes.manager import manager_node
+from logic.nodes.publisher import publisher_node
 from logic.routing import supervisor_router
 from logic.state import V3GraphState
 
@@ -58,6 +61,7 @@ def build_v3_graph(checkpointer=None) -> StateGraph:
     graph.add_node("creative_worker", creative_worker_node)
     graph.add_node("judge_worker", judge_worker_node)
     graph.add_node("wait_for_approval", approval_node)
+    graph.add_node("publisher_node", publisher_node)
 
     # ── Edges ──
     graph.set_entry_point("manager_node")
@@ -77,8 +81,9 @@ def build_v3_graph(checkpointer=None) -> StateGraph:
         },
     )
 
-    # HITL gate goes to END (for now, until publisher is built)
-    graph.add_edge("wait_for_approval", END)
+    # HITL gate feeds publisher; publisher terminates to END
+    graph.add_edge("wait_for_approval", "publisher_node")
+    graph.add_edge("publisher_node", END)
 
     # ── Compile ──
     compiled = graph.compile(

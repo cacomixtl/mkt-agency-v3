@@ -6,7 +6,7 @@
  * X-Thread-ID header (from localStorage) per BRIDGE_SPEC.md §6.
  */
 
-import type { APIEnvelope } from '@/types';
+import type { APIEnvelope, CampaignResumeRequest } from '@/types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
@@ -89,6 +89,20 @@ export function stream(path: string): EventSource {
 }
 
 /**
+ * POST /campaign/{id}/resume — Submit a HITL decision.
+ * Wraps the generic post() helper with a typed response shape.
+ */
+export async function resumeCampaign(
+  campaignId: string,
+  body: CampaignResumeRequest,
+): Promise<APIEnvelope<{ thread_id: string; decision: string; stage?: string }>> {
+  return post<{ thread_id: string; decision: string; stage?: string }>(
+    `/campaign/${campaignId}/resume`,
+    body,
+  );
+}
+
+/**
  * Structured API error with HTTP status code.
  */
 export class ApiError extends Error {
@@ -101,4 +115,4 @@ export class ApiError extends Error {
   }
 }
 
-export const api = { get, post, stream, setThreadId } as const;
+export const api = { get, post, stream, setThreadId, resumeCampaign } as const;

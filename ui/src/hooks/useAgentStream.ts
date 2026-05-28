@@ -13,7 +13,7 @@ import type {
   Thought,
   GoalNode,
 } from '@/types';
-import { api } from '@/api/client';
+import { api, resumeCampaign } from '@/api/client';
 
 const PIPELINE_NODES: GoalNode[] = [
   {
@@ -78,6 +78,7 @@ export interface AgentStreamState {
   thoughts: Thought[];
   stage: CampaignStage;
   isStreaming: boolean;
+  isSubmitting: boolean;
   breakpoint: SSEEventBreakpoint | null;
   preview: MarketingContent | null;
   nodes: GoalNode[];
@@ -93,6 +94,7 @@ export function useAgentStream(): AgentStreamState {
   const [thoughts, setThoughts] = useState<Thought[]>([]);
   const [stage, setStage] = useState<CampaignStage>('draft');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [breakpoint, setBreakpoint] = useState<SSEEventBreakpoint | null>(null);
   const [preview, setPreview] = useState<MarketingContent | null>(null);
   const [nodes, setNodes] = useState<GoalNode[]>(PIPELINE_NODES);
@@ -265,35 +267,53 @@ export function useAgentStream(): AgentStreamState {
 
   const submitDecision = useCallback(
     async (decision: HITLDecision, feedback?: string) => {
-      if (!activeThreadId) return;
-      
+      if (!activeThreadId || isSubmitting) return;
+
+      setIsSubmitting(true);
+      // Clear the gate immediately so the overlay is shown on BreakpointGate
       setBreakpoint(null);
-      addThought('Director', `Decision: ${decision.toUpperCase()}${feedback ? ` — "${feedback}"` : ''}`);
 
       try {
-         await api.post(`/campaign/${activeThreadId}/resume`, {
-            decision,
-            feedback: feedback || "No notes provided.",
-            channel: 'web_ui',
-            edited_content: decision === 'edit' && preview ? preview : undefined
-         });
-         
-         if (decision === 'request_revision') {
-            setStage('revising');
-            updateNodeStatus('approval', 'idle');
-            updateNodeStatus('creative', 'idle');
-            updateNodeStatus('critic', 'idle');
-            updateNodeStatus('image', 'idle');
-            setPreview(null);
-         }
-         listenToStream(activeThreadId);
-      } catch (err: any) {
-         addThought('Error', `Failed to submit decision: ${err.message}`);
-         setIsStreaming(false);
-         setStage('failed');
+        await resumeCampaign(activeThreadId, {
+          decision,
+          feedback: feedback ?? null,
+          edited_content: decision === 'edit' && preview ? preview : null,
+          channel: 'web_ui',
+        });
+
+        if (decision === 'approve') {
+          addThought('Director', 'Approval transmitted. Resuming pipeline...');
+          updateNodeStatus('approval', 'done');
+          listenToStream(activeThreadId);
+        } else if (decision === 'edit') {
+          addThought('Director', 'Edited content submitted. Resuming pipeline...');
+          updateNodeStatus('approval', 'done');
+          listenToStream(activeThreadId);
+        } else if (decision === 'request_revision') {
+          addThought('Director', `Revision requested.${feedback ? ` — "${feedback}"` : ''}`);
+          setStage('revising');
+          updateNodeStatus('approval', 'idle');
+          updateNodeStatus('creative', 'idle');
+          updateNodeStatus('critic', 'idle');
+          updateNodeStatus('image', 'idle');
+          setPreview(null);
+          listenToStream(activeThreadId);
+        } else if (decision === 'reject') {
+          addThought('Director', 'Campaign vetoed.');
+          setStage('vetoed');
+          updateNodeStatus('approval', 'idle');
+          // No SSE re-subscription — graph is terminated
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        addThought('Error', `Failed to submit decision: ${message}`);
+        setIsStreaming(false);
+        setStage('failed');
+      } finally {
+        setIsSubmitting(false);
       }
     },
-    [activeThreadId, addThought, listenToStream, updateNodeStatus, preview]
+    [activeThreadId, isSubmitting, addThought, listenToStream, updateNodeStatus, preview],
   );
 
   const triggerPivot = useCallback(
@@ -325,6 +345,7 @@ export function useAgentStream(): AgentStreamState {
     thoughts,
     stage,
     isStreaming,
+    isSubmitting,
     breakpoint,
     preview,
     nodes,

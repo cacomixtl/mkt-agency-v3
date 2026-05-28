@@ -24,6 +24,7 @@ export default function App() {
         breakpoint={stream.breakpoint}
         preview={stream.preview}
         onDecision={stream.submitDecision}
+        isSubmitting={stream.isSubmitting}
       />
     </main>
   );

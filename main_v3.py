@@ -32,7 +32,7 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import select, update as sa_update
 from sqlalchemy.exc import IntegrityError
 
 from CONTRACTS import (
@@ -40,6 +40,7 @@ from CONTRACTS import (
     APIEnvelope,
     APIMeta,
     CampaignStartRequest,
+    CampaignResumeRequest,
 )
 from infrastructure.checkpointer import get_checkpointer
 from infrastructure.connection import get_db_session
@@ -283,11 +284,9 @@ async def _run_graph(
         )
         # ── Mark campaign as failed in DB ──
         try:
-            from sqlalchemy import update
-
             async with get_db_session() as session:
                 stmt = (
-                    update(CampaignRecord)
+                    sa_update(CampaignRecord)
                     .where(CampaignRecord.thread_id == thread_id)
                     .values(stage="failed", updated_at=datetime.now(timezone.utc))
                 )
@@ -491,6 +490,122 @@ async def campaign_state(campaign_id: str):
             thread_id=record.thread_id,
             timestamp=datetime.now(timezone.utc),
         ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /campaign/{campaign_id}/resume (BRIDGE_SPEC.md §2)
+# ---------------------------------------------------------------------------
+
+
+@app.post(
+    "/campaign/{campaign_id}/resume",
+    response_model=APIEnvelope,
+    tags=["campaign"],
+)
+async def campaign_resume(campaign_id: str, body: CampaignResumeRequest):
+    """Submit a HITL decision to resume a paused campaign thread.
+
+    The graph interrupts AFTER wait_for_approval.  This endpoint
+    injects the Director's decision and resumes execution from
+    the checkpoint, allowing the publisher_node to run.
+
+    Decision behaviors:
+        approve          → Resume graph from checkpoint → publisher_node
+        reject           → Mark stage='vetoed' in DB. No graph resume.
+        request_revision → Inject feedback, resume → creative loop.
+        edit             → Replace content, resume → publisher_node.
+
+    WhatsApp restriction: only approve/reject supported (enforced by
+    CampaignResumeRequest validator in CONTRACTS.py).
+    """
+    # ── Validate campaign exists ──
+    async with get_db_session() as session:
+        stmt = select(CampaignRecord).where(CampaignRecord.thread_id == campaign_id)
+        result = await session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No campaign found with thread_id={campaign_id}",
+        )
+
+    graph = app.state.graph
+    config = {"configurable": {"thread_id": campaign_id}}  # noqa: F841
+
+    # ── Reject: no graph resume, just mark vetoed ──
+    if body.decision == "reject":
+        async with get_db_session() as session:
+            stmt = (
+                sa_update(CampaignRecord)
+                .where(CampaignRecord.thread_id == campaign_id)
+                .values(stage="vetoed", updated_at=datetime.now(timezone.utc))
+            )
+            await session.execute(stmt)
+        logger.info(
+            "Campaign vetoed by Director  thread_id=%s  feedback=%s",
+            campaign_id,
+            (body.feedback or "")[:80],
+        )
+        return APIEnvelope(
+            status="success",
+            data={"thread_id": campaign_id, "stage": "vetoed"},
+            meta=APIMeta(thread_id=campaign_id, timestamp=datetime.now(timezone.utc)),
+        )
+
+    # ── Build resume state update based on decision ──
+    resume_update: dict = {}
+
+    if body.decision == "approve":
+        # Empty update — graph resumes from checkpoint, publisher_node runs
+        resume_update = {}
+        logger.info("Campaign approved by Director  thread_id=%s", campaign_id)
+
+    elif body.decision == "request_revision":
+        resume_update = {
+            "feedback": body.feedback,
+            "stage": "revising",
+        }
+        logger.info(
+            "Director requested revision  thread_id=%s  feedback=%s",
+            campaign_id,
+            (body.feedback or "")[:80],
+        )
+
+    elif body.decision == "edit":
+        resume_update = {
+            "content": body.edited_content,
+            "stage": "approved",
+        }
+        logger.info("Director submitted edit  thread_id=%s", campaign_id)
+
+    # ── Launch graph resume as background task ──
+    # Guard: if a run is already active for this thread, don't double-launch
+    existing = _campaign_runs.get(campaign_id)
+    if existing and not existing.done.is_set():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Campaign {campaign_id} already has an active run",
+        )
+
+    task = asyncio.create_task(
+        _run_graph(graph, resume_update, campaign_id),
+        name=f"resume-{campaign_id[:8]}",
+    )
+    # Reset the run tracker so SSE clients pick up the new event stream
+    _campaign_runs[campaign_id] = CampaignRun(task=task)
+
+    logger.info(
+        "Graph resume launched  thread_id=%s  decision=%s",
+        campaign_id,
+        body.decision,
+    )
+
+    return APIEnvelope(
+        status="success",
+        data={"thread_id": campaign_id, "decision": body.decision},
+        meta=APIMeta(thread_id=campaign_id, timestamp=datetime.now(timezone.utc)),
     )
 
 

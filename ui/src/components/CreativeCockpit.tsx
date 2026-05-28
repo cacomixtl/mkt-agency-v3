@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import type { SSEEventBreakpoint, MarketingContent, HITLDecision } from '@/types';
 import BreakpointGate from './BreakpointGate';
 
@@ -7,9 +7,10 @@ interface CreativeCockpitProps {
   breakpoint: SSEEventBreakpoint | null;
   preview: MarketingContent | null;
   onDecision: (decision: HITLDecision, feedback?: string) => void;
+  isSubmitting?: boolean;
 }
 
-export default function CreativeCockpit({ breakpoint, preview, onDecision }: CreativeCockpitProps) {
+export default function CreativeCockpit({ breakpoint, preview, onDecision, isSubmitting = false }: CreativeCockpitProps) {
   const [activeTab, setActiveTab] = useState<'preview' | 'inspector'>('preview');
 
   return (
@@ -46,11 +47,46 @@ export default function CreativeCockpit({ breakpoint, preview, onDecision }: Cre
           <div className="w-full flex flex-col items-center space-y-6">
             {/* Breakpoint Gate (HITL Interface) */}
             {breakpoint ? (
-              <BreakpointGate
-                breakpoint={breakpoint}
-                preview={preview}
-                onDecision={onDecision}
-              />
+              <div className="relative w-full">
+                <BreakpointGate
+                  breakpoint={breakpoint}
+                  preview={preview}
+                  onDecision={onDecision}
+                />
+                {/* Submitting overlay — appears while API call is in-flight */}
+                <AnimatePresence>
+                  {isSubmitting && (
+                    <motion.div
+                      key="submitting-overlay"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute inset-0 bg-black/70 backdrop-blur-[1px] rounded flex flex-col items-center justify-center gap-3 z-10"
+                    >
+                      <div className="flex items-center gap-2">
+                        <motion.div
+                          className="w-1.5 h-1.5 rounded-full bg-[#00F0FF]"
+                          animate={{ opacity: [1, 0.2, 1] }}
+                          transition={{ duration: 0.9, repeat: Infinity }}
+                        />
+                        <span className="text-[9px] font-mono uppercase tracking-widest text-[#00F0FF]">
+                          Transmitting...
+                        </span>
+                      </div>
+                      {/* Thin indeterminate progress bar */}
+                      <div className="w-24 h-[1px] bg-[#1A1A1A] rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-[#00F0FF]/60"
+                          animate={{ x: ['-100%', '200%'] }}
+                          transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+                          style={{ width: '50%' }}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             ) : (
               <>
                 {/* Ghost UI: Mobile Frame */}
