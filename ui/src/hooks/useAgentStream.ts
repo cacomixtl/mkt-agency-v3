@@ -83,7 +83,7 @@ export interface AgentStreamState {
   preview: MarketingContent | null;
   nodes: GoalNode[];
 
-  startSimulation: () => void;
+  startSimulation: (personaName?: string, niche?: string, publishTargets?: ('instagram' | 'threads')[]) => void;
   submitDecision: (decision: HITLDecision, feedback?: string) => void;
   triggerPivot: (nodeId: string) => void;
   reset: () => void;
