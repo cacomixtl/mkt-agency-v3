@@ -241,16 +241,20 @@ export function useAgentStream(): AgentStreamState {
     };
   }, [addThought, updateNodeStatus, closeStream]);
 
-  const startSimulation = useCallback(async () => {
+  const startSimulation = useCallback(async (
+    personaName: string = "Silicon Labor",
+    niche: string = "Underground synth-wave event in Berlin.",
+    publishTargets: ('instagram' | 'threads')[] = ["instagram"]
+  ) => {
     reset();
     setIsStreaming(true);
-    addThought('System', 'Initiating live campaign thread. Persona: Silicon Labor.');
+    addThought('System', `Initiating live campaign thread. Persona: ${personaName}.`);
 
     try {
       const res = await api.post<{ thread_id: string }>('/campaign/start', {
-        persona_name: "Silicon Labor",
-        niche: "Underground synth-wave event in Berlin.",
-        publish_targets: ["instagram"]
+        persona_name: personaName,
+        niche: niche,
+        publish_targets: publishTargets
       });
       
       const newThreadId = res.data.thread_id;
@@ -263,7 +267,7 @@ export function useAgentStream(): AgentStreamState {
       setIsStreaming(false);
       setStage('failed');
     }
-  }, [addThought, listenToStream]);
+  }, [reset, addThought, listenToStream]);
 
   const submitDecision = useCallback(
     async (decision: HITLDecision, feedback?: string) => {

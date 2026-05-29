@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Activity } from 'lucide-react';
 import type { Thought, CampaignStage } from '@/types';
@@ -7,7 +8,7 @@ interface PulseSidebarProps {
   currentNode: string | null;
   stage: CampaignStage;
   isStreaming: boolean;
-  onStartSimulation: () => void;
+  onStartSimulation: (personaName: string, niche: string, publishTargets: ('instagram' | 'threads')[]) => void;
   onReset: () => void;
 }
 
@@ -43,6 +44,10 @@ export default function PulseSidebar({
   onStartSimulation,
   onReset,
 }: PulseSidebarProps) {
+  const [persona, setPersona] = useState('Silicon Labor');
+  const [niche, setNiche] = useState('Underground synth-wave event in Berlin.');
+  const [publishTargets, setPublishTargets] = useState<('instagram' | 'threads')[]>(['instagram']);
+  const startDisabled = publishTargets.length === 0 || !niche.trim();
   return (
     <aside className="w-[220px] border-r border-[#1A1A1A] bg-[#0A0A0A] flex flex-col h-screen h-svh overflow-hidden">
       {/* Header */}
@@ -131,17 +136,101 @@ export default function PulseSidebar({
       </div>
 
       {/* Controls */}
-      <div className="p-4 space-y-2 border-t border-[#1A1A1A]">
+      <div className="p-4 space-y-4 border-t border-[#1A1A1A]">
+        {!isStreaming && stage === 'draft' && (
+          <div className="space-y-3">
+            {/* Persona Dropdown */}
+            <div className="space-y-1">
+              <label className="text-[9px] text-[#444] uppercase tracking-widest block font-mono font-bold">
+                Brand Persona
+              </label>
+              <select
+                value={persona}
+                onChange={(e) => setPersona(e.target.value)}
+                className="w-full bg-[#111] border border-[#222] text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-[#00F0FF] font-mono cursor-pointer"
+              >
+                <option value="Silicon Labor">Silicon Labor</option>
+                <option value="Velvet Dispatch">Velvet Dispatch</option>
+                <option value="Ferro Static">Ferro Static</option>
+              </select>
+            </div>
+
+            {/* Campaign Brief / Niche */}
+            <div className="space-y-1">
+              <label className="text-[9px] text-[#444] uppercase tracking-widest block font-mono font-bold">
+                Campaign Brief (Niche)
+              </label>
+              <textarea
+                value={niche}
+                onChange={(e) => setNiche(e.target.value)}
+                placeholder="Enter campaign brief niche..."
+                rows={3}
+                className="w-full bg-[#111] border border-[#222] text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-[#00F0FF] font-mono resize-none"
+              />
+            </div>
+
+            {/* Publish Targets */}
+            <div className="space-y-1">
+              <label className="text-[9px] text-[#444] uppercase tracking-widest block font-mono font-bold">
+                Publish Targets
+              </label>
+              <div className="flex gap-4 pt-1">
+                <label className="flex items-center gap-2 text-[10px] font-mono text-white/60 cursor-pointer hover:text-white">
+                  <input
+                    type="checkbox"
+                    checked={publishTargets.includes('instagram')}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setPublishTargets([...publishTargets, 'instagram']);
+                      } else {
+                        setPublishTargets(publishTargets.filter(t => t !== 'instagram'));
+                      }
+                    }}
+                    className="accent-[#00F0FF] cursor-pointer"
+                  />
+                  Instagram
+                </label>
+                <label className="flex items-center gap-2 text-[10px] font-mono text-white/60 cursor-pointer hover:text-white">
+                  <input
+                    type="checkbox"
+                    checked={publishTargets.includes('threads')}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setPublishTargets([...publishTargets, 'threads']);
+                      } else {
+                        setPublishTargets(publishTargets.filter(t => t !== 'threads'));
+                      }
+                    }}
+                    className="accent-[#00F0FF] cursor-pointer"
+                  />
+                  Threads
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
         {!isStreaming && stage === 'draft' && (
           <motion.button
             id="btn-start-campaign"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={onStartSimulation}
-            className="w-full h-10 rounded bg-transparent border border-[#00F0FF] flex items-center justify-center group relative overflow-hidden transition-all hover:bg-[#00F0FF]/5"
+            whileHover={startDisabled ? {} : { scale: 1.02 }}
+            whileTap={startDisabled ? {} : { scale: 0.98 }}
+            onClick={() => {
+              if (!startDisabled) {
+                onStartSimulation(persona, niche, publishTargets);
+              }
+            }}
+            disabled={startDisabled}
+            className={`w-full h-10 rounded bg-transparent border flex items-center justify-center group relative overflow-hidden transition-all ${
+              startDisabled
+                ? 'border-[#222] cursor-not-allowed opacity-40'
+                : 'border-[#00F0FF] hover:bg-[#00F0FF]/5 cursor-pointer'
+            }`}
           >
             <div className="absolute inset-0 bg-[#00F0FF] opacity-5 blur-md" />
-            <span className="text-[#00F0FF] text-[10px] font-bold tracking-[0.3em] uppercase relative">
+            <span className={`text-[10px] font-bold tracking-[0.3em] uppercase relative ${
+              startDisabled ? 'text-[#444]' : 'text-[#00F0FF]'
+            }`}>
               Start Campaign
             </span>
           </motion.button>
