@@ -1,3 +1,4 @@
+//Trigger clean build
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import type { SSEEventBreakpoint, MarketingContent, HITLDecision } from '@/types';
