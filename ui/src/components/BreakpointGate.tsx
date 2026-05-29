@@ -14,6 +14,15 @@ export default function BreakpointGate({ breakpoint, preview, onDecision }: Brea
 
   const isPassive = breakpoint.approval_mode === 'passive';
 
+  const getImageUrl = (url: string) => {
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      return url;
+    }
+    const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+    return `${BASE_URL}${cleanUrl}`;
+  };
+
   const handleSubmit = (decision: HITLDecision) => {
     if ((decision === 'reject' || decision === 'request_revision') && !feedback.trim()) {
       setActiveAction(decision);
@@ -67,6 +76,28 @@ export default function BreakpointGate({ breakpoint, preview, onDecision }: Brea
             <div className="p-3 bg-black border border-[#1A1A1A] rounded text-[10px] text-[#8B5CF6]/80 leading-relaxed font-mono">
               {preview.image_prompt}
             </div>
+          </div>
+
+          {/* Generated Visual */}
+          <div>
+            <span className="text-[9px] text-[#444] uppercase tracking-widest block mb-1">
+              Generated Visual
+            </span>
+            {preview.image_urls && preview.image_urls.length > 0 ? (
+              <div className="border border-[#1A1A1A] rounded overflow-hidden bg-black flex items-center justify-center">
+                <img
+                  src={getImageUrl(preview.image_urls[0])}
+                  alt="Generated content asset"
+                  className="w-full h-auto object-cover max-h-[300px]"
+                />
+              </div>
+            ) : (
+              <div className="h-40 bg-black border border-[#1A1A1A] rounded flex items-center justify-center">
+                <span className="text-[9px] font-mono text-[#333] uppercase tracking-widest">
+                  Awaiting Asset
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Metadata Row */}

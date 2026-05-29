@@ -32,6 +32,7 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, update as sa_update
 from sqlalchemy.exc import IntegrityError
 
@@ -167,6 +168,12 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Thread-ID", "X-Agency-Debug"],
 )
+
+
+# ── Static Files Mount for Campaign Assets ──
+MEDIA_DIR = os.getenv("MEDIA_DIR", "/tmp/media")
+os.makedirs(MEDIA_DIR, exist_ok=True)
+app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
 
 # ---------------------------------------------------------------------------

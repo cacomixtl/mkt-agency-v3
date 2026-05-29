@@ -34,10 +34,11 @@ from langgraph.graph import END, StateGraph
 
 from logic.nodes.approval import approval_node
 from logic.nodes.creative import creative_worker_node
+from logic.nodes.image_worker import image_worker_node
 from logic.nodes.judge import judge_worker_node
 from logic.nodes.manager import manager_node
 from logic.nodes.publisher import publisher_node
-from logic.routing import supervisor_router
+from logic.routing import approval_router, supervisor_router
 from logic.state import V3GraphState
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ def build_v3_graph(checkpointer=None) -> StateGraph:
     graph.add_node("manager_node", manager_node)
     graph.add_node("creative_worker", creative_worker_node)
     graph.add_node("judge_worker", judge_worker_node)
+    graph.add_node("image_worker", image_worker_node)
     graph.add_node("wait_for_approval", approval_node)
     graph.add_node("publisher_node", publisher_node)
 
@@ -69,6 +71,7 @@ def build_v3_graph(checkpointer=None) -> StateGraph:
     # Workers always return to the Supervisor
     graph.add_edge("creative_worker", "manager_node")
     graph.add_edge("judge_worker", "manager_node")
+    graph.add_edge("image_worker", "manager_node")
 
     # Supervisor conditional routing
     graph.add_conditional_edges(
@@ -77,12 +80,20 @@ def build_v3_graph(checkpointer=None) -> StateGraph:
         {
             "creative_worker": "creative_worker",
             "judge_worker": "judge_worker",
+            "image_worker": "image_worker",
             "wait_for_approval": "wait_for_approval",
         },
     )
 
-    # HITL gate feeds publisher; publisher terminates to END
-    graph.add_edge("wait_for_approval", "publisher_node")
+    # HITL gate feeds publisher or manager; publisher terminates to END
+    graph.add_conditional_edges(
+        "wait_for_approval",
+        approval_router,
+        {
+            "manager_node": "manager_node",
+            "publisher_node": "publisher_node",
+        },
+    )
     graph.add_edge("publisher_node", END)
 
     # ── Compile ──
