@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 
+console.log('--- VITE BUILD SYSTEM ENV CHECK ---');
+console.log('process.env.VITE_API_BASE_URL:', process.env.VITE_API_BASE_URL);
+console.log('VITE_ keys in process.env:', Object.keys(process.env).filter(k => k.startsWith('VITE_')));
+console.log('------------------------------------');
+
 export default defineConfig({
   plugins: [
     react(),
