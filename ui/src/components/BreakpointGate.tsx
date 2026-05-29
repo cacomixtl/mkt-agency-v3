@@ -14,7 +14,8 @@ export default function BreakpointGate({ breakpoint, preview, onDecision }: Brea
 
   const isPassive = breakpoint.approval_mode === 'passive';
 
-  const getImageUrl = (url: string) => {
+  const getImageUrl = (url: string | undefined) => {
+    if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
       return url;
     }
