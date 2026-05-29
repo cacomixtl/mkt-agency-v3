@@ -15,6 +15,21 @@ if (targetUrl && !targetUrl.startsWith('http://') && !targetUrl.startsWith('http
   targetUrl = `http://${targetUrl}`;
 }
 
+// If target is an internal Railway address and lacks a port, append :8080 to bypass port-80 redirect
+if (targetUrl && targetUrl.includes('.railway.internal')) {
+  try {
+    const parsed = new URL(targetUrl);
+    if (!parsed.port) {
+      parsed.port = '8080';
+      targetUrl = parsed.origin;
+    }
+  } catch (e) {
+    if (!targetUrl.includes(':8080') && !/:[0-9]+/.test(targetUrl.replace('https://', '').replace('http://', ''))) {
+      targetUrl = targetUrl.replace(/\/$/, '') + ':8080';
+    }
+  }
+}
+
 console.log('--- PROXY RUNTIME TARGET URL:', targetUrl);
 console.log('--- ALL PROCESS ENV KEYS:', Object.keys(process.env).filter(k => k.includes('API') || k.includes('VITE') || k.includes('URL')));
 
