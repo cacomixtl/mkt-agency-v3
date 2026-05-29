@@ -12,7 +12,16 @@ let targetUrl =
 
 // Ensure targetUrl starts with http:// or https:// to prevent proxy split TypeError
 if (targetUrl && !targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-  targetUrl = `http://${targetUrl}`;
+  if (targetUrl.includes('.railway.internal') || targetUrl.includes('localhost') || targetUrl.includes('127.0.0.1')) {
+    targetUrl = `http://${targetUrl}`;
+  } else {
+    targetUrl = `https://${targetUrl}`;
+  }
+}
+
+// For public Railway domains, force https:// to prevent 301 redirects converting POST to GET
+if (targetUrl && targetUrl.startsWith('http://') && targetUrl.includes('.up.railway.app')) {
+  targetUrl = targetUrl.replace('http://', 'https://');
 }
 
 // If target is an internal Railway address and lacks a port, append :8080 to bypass port-80 redirect
