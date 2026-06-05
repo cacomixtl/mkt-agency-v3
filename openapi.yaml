@@ -1,0 +1,740 @@
+openapi: 3.1.0
+info:
+  title: Agency V3 — Director's API
+  description: |
+    The "Handshake" layer between the React Director's Cockpit and the
+    Agency V3 persistent backend.  This API owns campaign lifecycle
+    management, HITL (Human-in-the-Loop) decision gates, and real-time
+    SSE event streaming.
+
+    All responses use the `APIEnvelope` wrapper (BRIDGE_SPEC.md §1).
+    All SSE events conform to the `SSEEvent` union (CONTRACTS.py §5).
+  version: 3.0.0
+  contact:
+    name: Agency V3 Team
+
+servers:
+  - url: http://localhost:8000
+    description: Local development (uvicorn)
+  - url: https://frontend-v3-production-5ee4.up.railway.app
+    description: Railway production
+
+tags:
+  - name: health
+    description: System health checks
+  - name: campaign
+    description: Campaign lifecycle — start, state, resume, stream
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Paths
+# ═══════════════════════════════════════════════════════════════════════════
+
+paths:
+  /:
+    get:
+      operationId: root
+      summary: Root health check
+      description: Returns a minimal APIEnvelope confirming the service is online.
+      tags: [health]
+      responses:
+        "200":
+          description: Service is online
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIEnvelope"
+              example:
+                status: success
+                data:
+                  message: Agency V3 is online
+                meta:
+                  thread_id: system
+                  timestamp: "2026-06-04T12:00:00Z"
+                  version: v3.0.0
+
+  /campaign/start:
+    post:
+      operationId: campaign_start
+      summary: Initialize a new campaign thread
+      description: |
+        1. Resolves the persona (from registry name or custom config).
+        2. Generates a unique `thread_id`.
+        3. Persists a `CampaignRecord` to PostgreSQL.
+        4. Launches the LangGraph workflow as an asyncio background task.
+        5. Returns the APIEnvelope with `thread_id` immediately (non-blocking).
+      tags: [campaign]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignStartRequest"
+      responses:
+        "200":
+          description: Campaign thread created and graph launched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIEnvelope"
+              example:
+                status: success
+                data:
+                  thread_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  stage: draft
+                  persona_name: Silicon Labor
+                  publish_targets: [instagram, threads]
+                meta:
+                  thread_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  timestamp: "2026-06-04T12:00:00Z"
+                  version: v3.0.0
+        "409":
+          description: Campaign with this thread_id is already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPErrorDetail"
+        "422":
+          description: Validation error — unknown persona or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPErrorDetail"
+
+  /campaign/{campaign_id}/state:
+    get:
+      operationId: campaign_state
+      summary: Retrieve the current state of a campaign
+      description: |
+        Returns the `CampaignRecord` from the business-data table, hydrated
+        with live LangGraph checkpoint state (stage, vibe_score, retry_count).
+      tags: [campaign]
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+      responses:
+        "200":
+          description: Campaign state retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIEnvelope"
+              example:
+                status: success
+                data:
+                  thread_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  persona_name: Silicon Labor
+                  niche: "AI-powered productivity tools"
+                  stage: reviewing
+                  publish_targets: [instagram]
+                  vibe_score: 7.5
+                  retry_count: 1
+                  created_at: "2026-06-04T12:00:00Z"
+                  updated_at: "2026-06-04T12:05:00Z"
+                meta:
+                  thread_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  timestamp: "2026-06-04T12:05:30Z"
+                  version: v3.0.0
+        "404":
+          description: No campaign found with the given thread_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPErrorDetail"
+
+  /campaign/{campaign_id}/resume:
+    post:
+      operationId: campaign_resume
+      summary: Submit a HITL decision to resume a paused campaign
+      description: |
+        The graph interrupts AFTER `wait_for_approval`.  This endpoint
+        injects the Director's decision and resumes execution from the
+        checkpoint.
+
+        **Decision behaviors:**
+        - `approve` — Resume graph from checkpoint → `publisher_node`
+        - `reject` — Mark stage='vetoed' in DB. No graph resume.
+        - `request_revision` — Inject feedback, resume → creative loop.
+        - `edit` — Replace content, resume → `publisher_node`.
+
+        **WhatsApp restriction:** only `approve`/`reject` supported.
+      tags: [campaign]
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignResumeRequest"
+      responses:
+        "200":
+          description: Decision accepted and graph resumed (or campaign vetoed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIEnvelope"
+              examples:
+                approved:
+                  summary: Campaign approved
+                  value:
+                    status: success
+                    data:
+                      thread_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      decision: approve
+                    meta:
+                      thread_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      timestamp: "2026-06-04T12:10:00Z"
+                      version: v3.0.0
+                vetoed:
+                  summary: Campaign rejected
+                  value:
+                    status: success
+                    data:
+                      thread_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      stage: vetoed
+                    meta:
+                      thread_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      timestamp: "2026-06-04T12:10:00Z"
+                      version: v3.0.0
+        "404":
+          description: No campaign found with the given thread_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPErrorDetail"
+        "409":
+          description: Campaign already has an active run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPErrorDetail"
+
+  /campaign/{campaign_id}/stream:
+    get:
+      operationId: campaign_stream
+      summary: SSE stream for a running campaign
+      description: |
+        Server-Sent Events stream that provides real-time transparency
+        into agent execution.  Supports:
+        - **Real-time streaming** (client connects while graph runs)
+        - **Instant replay** (client connects after graph finishes)
+        - **Checkpoint fallback** (server restarted, no in-memory data)
+
+        ### SSE Event Types
+        | Event | Model | Description |
+        |-------|-------|-------------|
+        | `node_start` | `SSEEventNodeStart` | Agent began work |
+        | `agent_thought` | `SSEEventAgentThought` | Real-time reasoning |
+        | `breakpoint` | `SSEEventBreakpoint` | Graph paused for HITL |
+        | `completion` | `SSEEventCompletion` | Campaign finalized |
+        | `error` | `SSEEventError` | Processing error |
+      tags: [campaign]
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+      responses:
+        "200":
+          description: SSE event stream
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-cache
+            Connection:
+              schema:
+                type: string
+                example: keep-alive
+            X-Thread-ID:
+              schema:
+                type: string
+                description: The campaign thread_id echoed back
+          content:
+            text/event-stream:
+              schema:
+                description: |
+                  Newline-delimited SSE frames.  Each frame has the format:
+                  ```
+                  event: <event_type>
+                  data: <json_payload>
+                  ```
+                  The JSON payload is one of the SSEEvent union types.
+                oneOf:
+                  - $ref: "#/components/schemas/SSEEventNodeStart"
+                  - $ref: "#/components/schemas/SSEEventAgentThought"
+                  - $ref: "#/components/schemas/SSEEventBreakpoint"
+                  - $ref: "#/components/schemas/SSEEventCompletion"
+                  - $ref: "#/components/schemas/SSEEventError"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Components
+# ═══════════════════════════════════════════════════════════════════════════
+
+components:
+
+  # ── Parameters ──────────────────────────────────────────────────────────
+
+  parameters:
+    CampaignId:
+      name: campaign_id
+      in: path
+      required: true
+      description: The LangGraph thread_id assigned when the campaign was started
+      schema:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  # ── Schemas ─────────────────────────────────────────────────────────────
+
+  schemas:
+
+    # ── Enums & Literals ──
+
+    BrandTone:
+      type: string
+      enum: [Stoic, Analytical, Post-Punk, Melancholic, Sardonic, Custom]
+      description: Tonal register of the persona's written output
+
+    VisualMood:
+      type: string
+      enum: ["High-Contrast B&W", Desaturated Color, Neon Noir, Archival Film, Custom]
+      description: Dominant visual language for image generation prompts
+
+    CampaignStage:
+      type: string
+      enum:
+        - draft
+        - reviewing
+        - revising
+        - generating_image
+        - awaiting_approval
+        - approved
+        - published
+        - vetoed
+        - failed
+      description: Position in the campaign lifecycle
+
+    PublishTarget:
+      type: string
+      enum: [instagram, threads]
+      description: Social platform where approved content is delivered
+
+    InteractionChannel:
+      type: string
+      enum: [whatsapp, web_ui]
+      description: |
+        Channel through which the Director interacts.
+        WhatsApp supports limited HITL actions (approve/reject only).
+
+    CriticGrade:
+      type: string
+      enum: [PASS, REVISION]
+
+    BriefingRecommendation:
+      type: string
+      enum: [SHIP, REVIEW, HOLD]
+
+    HITLDecision:
+      type: string
+      enum: [approve, reject, edit, request_revision]
+      description: The director's decision on pending content
+
+    # ── Persona System ──
+
+    PersonaConfig:
+      type: object
+      description: |
+        Brand identity configuration injected into every agent.
+        Immutable once a campaign is initiated.
+      required: [name, tone, visual_style, brand_philosophy]
+      properties:
+        name:
+          type: string
+          description: "Human-readable persona identifier (e.g. 'Silicon Labor')"
+          example: Silicon Labor
+        tone:
+          $ref: "#/components/schemas/BrandTone"
+        custom_tone_description:
+          type: string
+          nullable: true
+          description: Required when tone='Custom'. 1-2 sentence tonal description.
+        visual_style:
+          type: string
+          description: "Freeform visual direction for image generation"
+          example: "High-contrast B&W, harsh shadows, 35mm grain"
+        visual_mood:
+          $ref: "#/components/schemas/VisualMood"
+          default: "High-Contrast B&W"
+        brand_philosophy:
+          type: string
+          description: "Intellectual/philosophical framework that grounds the brand"
+          example: "Byung-Chul Han's Burnout Society / Baudrillard's hyper-reality"
+        vocabulary_register:
+          type: array
+          items:
+            type: string
+          default: []
+          description: Key terms the persona should naturally employ
+        prohibited_terms:
+          type: array
+          items:
+            type: string
+          default: []
+          description: Words absolutely banned from this persona's output
+        default_aspect_ratio:
+          type: string
+          default: "9:16"
+          description: Default aspect ratio for generated images
+        default_publish_targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishTarget"
+          default: [instagram]
+          description: Default platforms for content delivery
+
+    # ── Domain Models ──
+
+    MarketingContent:
+      type: object
+      description: Primary output artifact produced by the Creative Worker
+      required: [caption, image_prompt]
+      properties:
+        caption:
+          type: string
+          description: Social media copy aligned with the persona's tone
+        image_prompt:
+          type: string
+          description: Technical prompt for the image generation service
+        aspect_ratio:
+          type: string
+          default: "9:16"
+          enum: ["9:16", "4:5", "1:1", "16:9"]
+          description: Target aspect ratio for the generated image
+        vibe_score:
+          type: number
+          format: float
+          nullable: true
+          minimum: 0.0
+          maximum: 10.0
+          description: "Float 0-10 expressing persona alignment (set by Critic)"
+        needs_revision:
+          type: boolean
+          default: false
+          description: Flag set by the Critic when content fails audit
+        image_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+          default: []
+          description: Public URLs or local paths of generated images
+        publish_targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishTarget"
+          default: [instagram]
+          description: Platforms this content is destined for
+
+    Critique:
+      type: object
+      description: Evaluation artifact returned by the Critic Worker
+      required: [grade, feedback, vibe_score]
+      properties:
+        grade:
+          $ref: "#/components/schemas/CriticGrade"
+        feedback:
+          type: string
+          description: Detailed, constructive feedback for the Creative Worker
+        vibe_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 10.0
+          description: "Float 0-10 rating of persona alignment"
+
+    ExecutiveBriefing:
+      type: object
+      description: Structured output from the Executive Worker
+      required: [summary, recommendation]
+      properties:
+        summary:
+          type: string
+          description: 3-5 sentence executive summary of the campaign draft
+        risk_flags:
+          type: array
+          items:
+            type: string
+          default: []
+          description: Specific risk items (brand misalignment, excessive revisions, etc.)
+        recommendation:
+          $ref: "#/components/schemas/BriefingRecommendation"
+
+    RevisionEntry:
+      type: object
+      description: A single creative → critic exchange in the revision history
+      required:
+        - attempt
+        - caption_snapshot
+        - image_prompt_snapshot
+        - critic_grade
+        - critic_feedback
+        - vibe_score
+      properties:
+        attempt:
+          type: integer
+          minimum: 1
+          description: 1-indexed attempt number
+        caption_snapshot:
+          type: string
+        image_prompt_snapshot:
+          type: string
+        critic_grade:
+          $ref: "#/components/schemas/CriticGrade"
+        critic_feedback:
+          type: string
+        vibe_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 10.0
+        timestamp:
+          type: string
+          format: date-time
+
+    # ── API Envelope ──
+
+    APIMeta:
+      type: object
+      description: Metadata block for every API response
+      required: [thread_id]
+      properties:
+        thread_id:
+          type: string
+          description: LangGraph thread identifier
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          default: v3.0.0
+
+    APIEnvelope:
+      type: object
+      description: |
+        Standard wrapper for all REST API responses.
+        Defined in BRIDGE_SPEC.md §1.
+      required: [status, meta]
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+          default: success
+        data:
+          description: Response payload (shape varies by endpoint)
+        meta:
+          $ref: "#/components/schemas/APIMeta"
+
+    # ── Request Bodies ──
+
+    CampaignStartRequest:
+      type: object
+      description: |
+        POST /campaign/start — Initialize a new campaign thread.
+        Either `persona_name` or `persona_config` must be provided.
+      required: [niche]
+      properties:
+        persona_name:
+          type: string
+          nullable: true
+          description: "Name of a registered persona (e.g. 'Silicon Labor')"
+          example: Silicon Labor
+        persona_config:
+          $ref: "#/components/schemas/PersonaConfig"
+          nullable: true
+          description: Full custom persona config (overrides persona_name)
+        niche:
+          type: string
+          description: The business/product brief for the campaign
+          example: "AI-powered productivity tools for remote teams"
+        publish_targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishTarget"
+          default: [instagram]
+          description: Target platforms for the generated content
+
+    CampaignResumeRequest:
+      type: object
+      description: |
+        POST /campaign/{id}/resume — Submit HITL approval or feedback.
+
+        Validation rules:
+        - `edit` requires `edited_content`
+        - `reject` and `request_revision` require `feedback`
+        - WhatsApp channel only supports `approve` and `reject`
+      required: [decision]
+      properties:
+        decision:
+          $ref: "#/components/schemas/HITLDecision"
+        feedback:
+          type: string
+          nullable: true
+          description: |
+            Director's notes.  Required for 'reject' and 'request_revision'.
+            Optional for 'approve'.  Ignored for 'edit'.
+        edited_content:
+          $ref: "#/components/schemas/MarketingContent"
+          nullable: true
+          description: Full replacement content — only used with decision='edit'
+        channel:
+          $ref: "#/components/schemas/InteractionChannel"
+          default: web_ui
+          description: Source channel of this HITL action
+
+    # ── SSE Event Models ──
+
+    SSEEventNodeStart:
+      type: object
+      description: "SSE event: a specific agent has begun work"
+      required: [event_type, node_name]
+      properties:
+        event_type:
+          type: string
+          const: node_start
+        node_name:
+          type: string
+          description: Name of the graph node that started
+
+    SSEEventAgentThought:
+      type: object
+      description: "SSE event: real-time streaming of agent reasoning"
+      required: [event_type, text]
+      properties:
+        event_type:
+          type: string
+          const: agent_thought
+        text:
+          type: string
+          description: Streamed reasoning text
+        step:
+          type: integer
+          default: 0
+          description: Sequential step counter
+
+    SSEEventBreakpoint:
+      type: object
+      description: "SSE event: graph paused for Director intervention"
+      required: [event_type, breakpoint_type, approval_mode]
+      properties:
+        event_type:
+          type: string
+          const: breakpoint
+        breakpoint_type:
+          type: string
+          const: approval_required
+        approval_mode:
+          type: string
+          enum: [active, passive]
+        preview:
+          $ref: "#/components/schemas/MarketingContent"
+          nullable: true
+
+    SSEEventCompletion:
+      type: object
+      description: "SSE event: campaign is finalized"
+      required: [event_type, stage]
+      properties:
+        event_type:
+          type: string
+          const: completion
+        stage:
+          $ref: "#/components/schemas/CampaignStage"
+        publish_targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishTarget"
+          default: []
+
+    SSEEventError:
+      type: object
+      description: "SSE event: an error occurred during processing"
+      required: [event_type, error_code, message]
+      properties:
+        event_type:
+          type: string
+          const: error
+        error_code:
+          type: integer
+          description: HTTP-style status code
+        message:
+          type: string
+          description: Human-readable error message
+        node_name:
+          type: string
+          nullable: true
+          description: Graph node where the error occurred (if known)
+
+    # ── Error Response ──
+
+    HTTPErrorDetail:
+      type: object
+      description: Standard FastAPI error response
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+
+    # ── Campaign State Data (returned by GET /campaign/{id}/state) ──
+
+    CampaignStateData:
+      type: object
+      description: |
+        The `data` payload returned by GET /campaign/{id}/state.
+        Hydrated from CampaignRecord + LangGraph checkpoint.
+      properties:
+        thread_id:
+          type: string
+        persona_name:
+          type: string
+        niche:
+          type: string
+        stage:
+          $ref: "#/components/schemas/CampaignStage"
+        publish_targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishTarget"
+        vibe_score:
+          type: number
+          format: float
+          nullable: true
+          minimum: 0.0
+          maximum: 10.0
+        retry_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ── Campaign Start Data (returned by POST /campaign/start) ──
+
+    CampaignStartData:
+      type: object
+      description: "The `data` payload returned by POST /campaign/start"
+      properties:
+        thread_id:
+          type: string
+          format: uuid
+        stage:
+          type: string
+          example: draft
+        persona_name:
+          type: string
+        publish_targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishTarget"
